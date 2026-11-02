@@ -1,0 +1,8 @@
+{
+  "scope": "실행 준비용 설정 예시. 비밀 key를 이 파일에 넣지 마세요.",
+  "hermes": {"analysisVersion": "v0.22.5", "sourceEnv": "HERMES_SOURCE", "isolatedHomeEnv": "HERMES_HOME", "traceOutput": "private/hermes-trace.json"},
+  "pydantic": {"analysisVersion": "2.61.0", "pythonEnv": "SEMINAR_PYTHON", "traceOutput": "private/pydantic-trace.json"},
+  "provider": {"apiKeyEnv": "OPENAI_API_KEY", "baseUrlEnv": "OPENAI_BASE_URL", "modelEnv": "SEMINAR_MODEL"},
+  "domain": {"dataPathEnv": "SEMINAR_DATA", "lot": "LOT-A", "bin": "BIN-X", "snapshot": "snapshot-v1", "sop": "SOP-r3", "principal": "analyst-A", "denominator": null, "period": null, "predictionTarget": null},
+  "unresolved": ["실제 데이터", "기간·분모", "예측 target·방법", "실제 모델 ID", "Hook·관찰 지점", "출력 Schema", "승인 UI"]
+}

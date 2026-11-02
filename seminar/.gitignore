@@ -1,0 +1,6 @@
+.venv/
+vendor/
+private/
+*.log
+.server.pid
+__pycache__/

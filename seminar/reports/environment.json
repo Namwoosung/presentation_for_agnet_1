@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-11-02T16:08:15.453Z",
+  "platform": "win32",
+  "node": {
+    "path": "C:\\Users\\namws\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "version": "v24.22.1"
+  },
+  "python": {
+    "path": "C:\\Users\\namws\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+    "available": true,
+    "version": "Python 3.12.14"
+  },
+  "git": {
+    "available": true,
+    "version": "git version 2.55.0.windows.3"
+  },
+  "packages": {
+    "pydantic-ai": null,
+    "pydantic-ai-slim": null,
+    "hermes-agent": null
+  },
+  "environmentPresence": {
+    "OPENAI_API_KEY": false,
+    "ANTHROPIC_API_KEY": false,
+    "OPENAI_BASE_URL": false,
+    "SEMINAR_MODEL": false,
+    "SEMINAR_DATA": false,
+    "HERMES_HOME": false,
+    "HERMES_SOURCE": false
+  },
+  "scope": "설명용 재생과 실행 준비. API 호출·기존 설치 수정 없음",
+  "notVerified": [
+    "실제 Hermes Run",
+    "실제 PydanticAI Run",
+    "Provider payload 관찰",
+    "vLLM 기능 호환",
+    "실제 데이터·예측 품질",
+    "다른 PC 실행"
+  ]
+}

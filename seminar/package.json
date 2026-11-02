@@ -1,0 +1,4 @@
+{
+  "name": "agent-framework-seminar-2", "private": true, "type": "module",
+  "scripts": {"build": "node scripts/build.mjs", "start": "node scripts/serve.mjs", "check": "node scripts/check.mjs", "doctor": "node scripts/doctor.mjs"}
+}
