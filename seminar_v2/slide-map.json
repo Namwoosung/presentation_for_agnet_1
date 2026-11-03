@@ -1,0 +1,32 @@
+[
+  {
+    "id": "F006",
+    "steps": 5,
+    "section": "HERMES",
+    "sources": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+  },
+  {
+    "id": "F009",
+    "steps": 5,
+    "section": "HERMES",
+    "sources": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+  },
+  {
+    "id": "F049",
+    "steps": 4,
+    "section": "PYDANTIC AI",
+    "sources": "P-DEPS  ·  DOC_CONFIRMED / 의사코드"
+  },
+  {
+    "id": "F066",
+    "steps": 4,
+    "section": "OPENAI AGENTS SDK",
+    "sources": "O-ORCH  ·  DOC_CONFIRMED / 설계 예시"
+  },
+  {
+    "id": "F091",
+    "steps": 4,
+    "section": "DEPLOYMENT",
+    "sources": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+  }
+]

@@ -1,0 +1,842 @@
+Dependencies | Pydantic Docs
+Skip to content
+/
+Docs
+Pydantic Docs
+Pydantic Validation
+Pydantic AI
+Pydantic Logfire
+HTTPX2
+Monty
+More
+HTTPX2
+Monty
+Search
+Ctrl
+K
+Pydantic Validation
+Pydantic AI
+Pydantic Logfire
+HTTPX2
+Monty
+Pydantic Validation
+Pydantic AI
+Pydantic Logfire
+HTTPX2
+Monty
+Theme
+pydantic/pydantic-ai
+Pydantic Validation
+Pydantic AI
+Pydantic Logfire
+HTTPX2
+Monty
+Theme
+pydantic/pydantic-ai
+Pydantic AI
+Installation
+Coding Agent Skills
+Built with Pydantic AI
+Getting Help
+Enterprise Support
+Troubleshooting
+Core Concepts
+Agents
+Dependencies
+Output
+Multimodal Input
+Hooks
+Workspaces
+Agent Specs
+Messages and Chat History
+Citations
+Direct Model Requests
+Batch Processing
+Retries
+Timeouts
+Multi-Agent Patterns
+Models & Providers
+Overview
+Pydantic AI Gateway
+OpenAI
+Anthropic
+Google
+AWS Bedrock
+Google Cloud
+Microsoft Azure / Foundry
+Cerebras
+Cohere
+Crusoe
+DeepSeek
+GitHub Copilot
+Groq
+Hugging Face
+Meta
+Mistral
+Moonshot AI / Kimi
+Ollama
+OpenAI ChatGPT Plan Usage
+OpenAI Codex
+OpenRouter
+Snowflake Cortex
+System One API
+TypeSafe (Jev)
+xAI
+Z.AI
+Other Compatible APIs
+Decision Models
+Tools & Toolsets
+Function Tools
+Advanced Tool Features
+Toolsets
+Deferred Tools
+Native Tools
+Common Tools
+Third-Party Tools
+Production
+Overview
+Enterprise
+Observability
+Testing
+Persistence
+Durable Execution
+Overview
+Temporal
+DBOS
+Prefect
+Restate
+AWS Lambda
+Absurd
+pgtask
+Apache Airflow
+Building a Backend
+Capabilities
+Overview
+On-Demand Capabilities
+Building Custom Capabilities
+Pydantic AI Harness
+Harnesses
+Coder
+Researcher
+Execution Environments
+FileSystem
+Smart Search
+Shell
+Modal Sandbox
+E2B Sandbox
+Sprites Sandbox
+Daytona Sandbox
+boxd Sandbox
+Smol Sandbox
+BoxLite Sandbox
+Docker Sandbox
+SSH Workspace
+Bubblewrap Sandbox
+Tools & Native Abilities
+MCP Capability
+Image Generation Capability
+File Understanding
+Integrations
+Overview
+GitHub
+Linear
+Macroscope
+LocalStack
+Google Workspace
+Notion
+Slack
+Day AI
+Grain
+Pylon
+StackOne
+PostHog
+Logfire MCP
+Ordinal
+Web & Research
+Web Search
+Web Fetch
+X Search
+Exa Search
+You.com
+Browser Use
+Playwright Browser
+Reasoning, Planning & Delegation
+Thinking
+Planning
+Subagents
+Dynamic Workflow
+Advisor
+Background Tools
+Context Management
+Code Mode
+IPython Code Mode
+Tool Search
+Caching
+Provider-Native Compaction
+Compaction Strategies
+Tool Output Limits
+Warn On Cache Busts
+Knowledge & Memory
+Memory
+Conversation Search
+Skills
+Repo Context
+Pydantic AI Docs
+Control & Safety
+Guardrails
+Prompt Injection Defender
+Artifact Scanning
+Spend Limits
+Handle Deferred Tool Calls
+Ask User
+System Reminders
+Detect Loops
+Trajectory Judge
+Tool Call Judge
+Approval Reviewer
+Runtime Capability Creation
+Execution Runtime
+Instrumentation
+Step Persistence
+Render Workflows
+Media Stores
+Managed Prompt
+Repair Tool Arguments
+Thread Executor
+Loop Customization
+Select Model
+Model Fallback
+Resolve Model ID
+Prepare Tools
+Prefix Tools
+Include Tool Return Schemas
+Set Tool Metadata
+Raise Content Filter Error
+Reinject System Prompt
+Process History
+Process Event Stream
+Harness Examples
+Third-Party Capabilities
+Realtime (speech-to-speech)
+Overview
+Audio, Images, and Transcripts
+Events
+Turns and Interruptions
+Tools
+Capabilities and Hooks
+History and Handoff
+Deployment
+Connection Lifecycle
+Usage and Observability
+Troubleshooting
+OpenAI
+Azure
+Google Gemini
+xAI
+ElevenLabs
+Interfaces
+Overview
+Web Chat UI
+UI Event Streams
+Overview
+AG-UI
+Vercel AI
+Command Line Interface (CLI)
+GitHub Agentic Workflows
+ACP
+Extensibility
+Image Generation
+Embeddings
+MCP
+Overview
+Client
+Server
+Pydantic Evals
+Overview
+Getting Started
+Quick Start
+Core Concepts
+Evaluators
+Overview
+Built-in Evaluators
+LLM Judge
+Third-Party Integrations
+Custom Evaluators
+Report Evaluators
+Span-Based
+Agentic Evaluators
+Standard Quality Metrics
+Online Evaluation
+How-To Guides
+Logfire Integration
+Dataset Management
+Dataset Serialization
+Concurrency & Performance
+Multi-Run Evaluation
+Retry Strategies
+Metrics & Attributes
+Case Lifecycle Hooks
+Simple Validation
+Pydantic Graph
+Overview
+Graph Builder
+Getting Started
+Steps
+Joins & Reducers
+Decisions
+Parallel Execution
+Examples
+Setup
+Getting Started
+Pydantic Model
+Weather Agent
+Conversational Agents
+Chat App with FastAPI
+Bank Support
+Data & Analytics
+SQL Generation
+Data Analyst
+RAG
+TwelveLabs Video Agent
+Streaming
+Stream Markdown
+Stream Whales
+Cancel and Resume
+Realtime
+Voice Assistant
+Text to Audio
+Agent Handoff
+Camera Agent
+Browser WebRTC
+Complex Workflows
+Flight Booking
+Medical Agent Delegation
+Business Applications
+UI Examples
+Comparisons
+Overview
+Migrate to Pydantic AI
+vs LangChain & LangGraph
+vs Claude Agent SDK
+vs Vercel AI SDK
+vs OpenAI Agents SDK
+vs Google ADK
+vs Mastra
+vs LiveKit Agents
+vs Pipecat
+vs Pi
+vs Agno
+vs CrewAI
+API Reference
+pydantic_ai
+agent
+native_tools
+capabilities
+common_tools
+concurrency
+conversation
+direct
+durable_exec
+embeddings
+exceptions
+ext
+format_prompt
+framing
+function_signature
+images
+mcp
+messages
+models
+anthropic
+base
+batch
+bedrock
+bedrock_mantle
+cerebras
+cohere
+crusoe
+fallback
+function
+google
+github_copilot
+xai
+groq
+huggingface
+instrumented
+mcp-sampling
+mistral
+ollama
+openai
+openai_codex
+openai_decisions
+openrouter
+snowflake
+test
+decision
+system_one
+typesafe
+zai
+wrapper
+output
+profiles
+providers
+realtime
+realtime
+codec
+lifecycle
+openai
+live
+google
+xai
+azure
+elevenlabs
+elevenlabs_agents
+result
+retries
+run
+workspaces
+settings
+template
+tools
+toolsets
+ui
+ag_ui
+base
+vercel_ai
+usage
+pydantic_evals
+pydantic_evals.dataset
+pydantic_evals.evaluators
+pydantic_evals.lifecycle
+pydantic_evals.online
+pydantic_evals.online_capability
+pydantic_evals.reporting
+pydantic_evals.otel
+pydantic_evals.generation
+pydantic_graph
+pydantic_graph.basenode
+pydantic_graph.graph_builder
+pydantic_graph.step
+pydantic_graph.join
+pydantic_graph.decision
+pydantic_graph.node
+pydantic_graph.util
+pydantic_graph.exceptions
+Project
+Contributing
+Upgrade Guide
+V1 → V2 Migration Map
+Version Policy
+On this page
+Overview
+Defining Dependencies
+Accessing Dependencies
+Asynchronous vs. Synchronous dependencies
+Full Example
+Overriding Dependencies
+Examples
+On this page
+Overview
+Defining Dependencies
+Accessing Dependencies
+Asynchronous vs. Synchronous dependencies
+Full Example
+Overriding Dependencies
+Examples
+Dependencies
+Pydantic AI uses a dependency injection system to provide data and services to your agent’s
+instructions
+,
+tools
+and
+output validators
+.
+Pydantic AI’s dependency system follows established Python practices, making dependencies type-safe, understandable, easy to test, and easy to deploy in production.
+Defining Dependencies
+Dependencies can be any python type. While in simple cases you might be able to pass a single object as a dependency (e.g. an HTTP connection),
+dataclasses
+are generally a convenient container when your dependencies include multiple objects.
+Here’s an example of defining an agent that requires dependencies.
+(
+Note:
+dependencies aren’t actually used in this example, see
+Accessing Dependencies
+below)
+unused_dependencies.py
+from dataclasses import dataclass
+
+import httpx
+
+from pydantic_ai import Agent
+
+
+@dataclass
+class MyDeps:  # (1)
+    api_key: str
+    http_client: httpx.AsyncClient
+
+
+agent = Agent(
+    'openai:gpt-6.1-sol',
+    deps_type=MyDeps,  # (2)
+)
+
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        deps = MyDeps('foobar', client)
+        result = await agent.run(
+            'Tell me a joke.',
+            deps=deps,  # (3)
+        )
+        print(result.output)
+        #> Did you hear about the toothpaste scandal? They called it Colgate.
+Define a dataclass to hold dependencies.
+Pass the dataclass type to the
+deps_type
+argument of the
+Agent
+constructor
+.
+Note
+: we're passing the type here, NOT an instance, this parameter is not actually used at runtime, it's here so we can get full type checking of the agent.
+When running the agent, pass an instance of the dataclass to the
+deps
+parameter.
+(To run this example, ensure
+asyncio
+is imported and add
+asyncio.run(main())
+; no other changes are needed.)
+Accessing Dependencies
+Dependencies are accessed through the
+RunContext
+type, this should be the first parameter of instructions functions etc.
+instructions_dependencies.py
+from dataclasses import dataclass
+
+import httpx
+
+from pydantic_ai import Agent, RunContext
+
+
+@dataclass
+class MyDeps:
+    api_key: str
+    http_client: httpx.AsyncClient
+
+
+agent = Agent(
+    'openai:gpt-6.1-sol',
+    deps_type=MyDeps,
+)
+
+
+@agent.instructions  # (1)
+async def get_instructions(ctx: RunContext[MyDeps]) -> str:  # (2)
+    response = await ctx.deps.http_client.get(  # (3)
+        'https://example.com',
+        headers={'Authorization': f'Bearer {ctx.deps.api_key}'},  # (4)
+    )
+    response.raise_for_status()
+    return f'Prompt: {response.text}'
+
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        deps = MyDeps('foobar', client)
+        result = await agent.run('Tell me a joke.', deps=deps)
+        print(result.output)
+        #> Did you hear about the toothpaste scandal? They called it Colgate.
+RunContext
+may optionally be passed to an
+instructions
+function as the only argument.
+RunContext
+is parameterized with the type of the dependencies, if this type is incorrect, static type checkers will raise an error.
+Access the HTTP client through the
+.deps
+attribute.
+Access the API key through the same attribute.
+(To run this example, ensure
+asyncio
+is imported and add
+asyncio.run(main())
+; no other changes are needed.)
+In addition to
+.deps
+,
+RunContext
+provides access to the running agent via
+.agent
+, which is useful when
+tools
+,
+hooks
+, or
+capabilities
+need to read agent properties like
+name
+or
+output_type
+. The
+.realtime
+property identifies realtime sessions without requiring a model type check, and
+.realtime_session
+exposes the live
+RealtimeSession
+to tools and hooks once it is connected.
+Dependency fields can also be referenced in instructions and descriptions via
+template strings
+— for example,
+TemplateStr('Hello {{name}}')
+renders
+name
+from the deps object at runtime. This is especially useful in
+agent specs
+where callables aren’t available.
+Asynchronous vs. Synchronous dependencies
+Instructions functions
+,
+function tools
+and
+output validators
+are all run in the async context of an agent run.
+If these functions are synchronous, defined with
+def
+rather than
+async def
+, Pydantic AI calls them with
+run_in_executor
+in a thread pool. Prefer
+async
+functions when dependencies
+perform I/O, although synchronous dependencies also work.
+run
+vs.
+run_sync
+and Asynchronous vs. Synchronous dependencies
+Whether you use synchronous or asynchronous dependencies is completely independent of whether you use
+run
+or
+run_sync
+—
+run_sync
+is just a wrapper around
+run
+and agents are always run in an async context.
+Here’s the same example as above, but with a synchronous dependency:
+sync_dependencies.py
+from dataclasses import dataclass
+
+import httpx
+
+from pydantic_ai import Agent, RunContext
+
+
+@dataclass
+class MyDeps:
+    api_key: str
+    http_client: httpx.Client  # (1)
+
+
+agent = Agent(
+    'openai:gpt-6.1-sol',
+    deps_type=MyDeps,
+)
+
+
+@agent.instructions
+def get_instructions(ctx: RunContext[MyDeps]) -> str:  # (2)
+    response = ctx.deps.http_client.get(
+        'https://example.com', headers={'Authorization': f'Bearer {ctx.deps.api_key}'}
+    )
+    response.raise_for_status()
+    return f'Prompt: {response.text}'
+
+
+async def main():
+    deps = MyDeps('foobar', httpx.Client())
+    result = await agent.run(
+        'Tell me a joke.',
+        deps=deps,
+    )
+    print(result.output)
+    #> Did you hear about the toothpaste scandal? They called it Colgate.
+Here we use a synchronous
+httpx.Client
+instead of an asynchronous
+httpx.AsyncClient
+.
+To match the synchronous dependency, the instructions function is now a plain function, not a coroutine.
+(To run this example, ensure
+asyncio
+is imported and add
+asyncio.run(main())
+; no other changes are needed.)
+Full Example
+As well as instructions, dependencies can be used in
+tools
+and
+output validators
+.
+full_example.py
+from dataclasses import dataclass
+
+import httpx
+
+from pydantic_ai import Agent, ModelRetry, RunContext
+
+
+@dataclass
+class MyDeps:
+    api_key: str
+    http_client: httpx.AsyncClient
+
+
+agent = Agent(
+    'openai:gpt-6.1-sol',
+    deps_type=MyDeps,
+)
+
+
+@agent.instructions
+async def get_instructions(ctx: RunContext[MyDeps]) -> str:
+    response = await ctx.deps.http_client.get('https://example.com')
+    response.raise_for_status()
+    return f'Prompt: {response.text}'
+
+
+@agent.tool  # (1)
+async def get_joke_material(ctx: RunContext[MyDeps], subject: str) -> str:
+    response = await ctx.deps.http_client.get(
+        'https://example.com#jokes',
+        params={'subject': subject},
+        headers={'Authorization': f'Bearer {ctx.deps.api_key}'},
+    )
+    response.raise_for_status()
+    return response.text
+
+
+@agent.output_validator  # (2)
+async def validate_output(ctx: RunContext[MyDeps], output: str) -> str:
+    response = await ctx.deps.http_client.post(
+        'https://example.com#validate',
+        headers={'Authorization': f'Bearer {ctx.deps.api_key}'},
+        params={'query': output},
+    )
+    if response.status_code == 400:
+        raise ModelRetry(f'invalid response: {response.text}')
+    response.raise_for_status()
+    return output
+
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        deps = MyDeps('foobar', client)
+        result = await agent.run('Tell me a joke.', deps=deps)
+        print(result.output)
+        #> Did you hear about the toothpaste scandal? They called it Colgate.
+To pass
+RunContext
+to a tool, use the
+tool
+decorator.
+RunContext
+may optionally be passed to a
+output_validator
+function as the first argument.
+(To run this example, ensure
+asyncio
+is imported and add
+asyncio.run(main())
+; no other changes are needed.)
+Overriding Dependencies
+When testing agents, it’s useful to be able to customise dependencies.
+While this can sometimes be done by calling the agent directly within unit tests, we can also override dependencies
+while calling application code which in turn calls the agent.
+This is done via the
+override
+method on the agent.
+joke_app.py
+from dataclasses import dataclass
+
+import httpx
+
+from pydantic_ai import Agent, RunContext
+
+
+@dataclass
+class MyDeps:
+    api_key: str
+    http_client: httpx.AsyncClient
+
+    async def instructions_factory(self) -> str:  # (1)
+        response = await self.http_client.get('https://example.com')
+        response.raise_for_status()
+        return f'Prompt: {response.text}'
+
+
+joke_agent = Agent('openai:gpt-6.1-sol', deps_type=MyDeps)
+
+
+@joke_agent.instructions
+async def get_instructions(ctx: RunContext[MyDeps]) -> str:
+    return await ctx.deps.instructions_factory()  # (2)
+
+
+async def application_code(prompt: str) -> str:  # (3)
+    ...
+    ...
+    # now deep within application code we call our agent
+    async with httpx.AsyncClient() as client:
+        app_deps = MyDeps('foobar', client)
+        result = await joke_agent.run(prompt, deps=app_deps)  # (4)
+    return result.output
+Define a method on the dependency to make the instructions easier to customise.
+Call the instructions factory from within the instructions function.
+Application code that calls the agent, in a real application this might be an API endpoint.
+Call the agent from within the application code, in a real application this call might be deep within a call stack. Note
+app_deps
+here will NOT be used when deps are overridden.
+(This example is complete, it can be run “as is”)
+test_joke_app.py
+import httpx
+
+from joke_app import MyDeps, application_code, joke_agent
+
+
+class TestMyDeps(MyDeps):  # (1)
+    async def instructions_factory(self) -> str:
+        return 'test prompt'
+
+
+async def test_application_code():
+    test_deps = TestMyDeps('test_key', httpx.AsyncClient())  # (2)
+    with joke_agent.override(deps=test_deps):  # (3)
+        joke = await application_code('Tell me a joke.')  # (4)
+    assert joke.startswith('Did you hear about the toothpaste scandal?')
+Define a subclass of
+MyDeps
+in tests to customise the instructions factory.
+Create an instance of the test dependency. Its
+http_client
+goes unused, as the test instructions factory makes no requests.
+Override the dependencies of the agent for the duration of the
+with
+block,
+test_deps
+will be used when the agent is run.
+Now we can safely call our application code, the agent will use the overridden dependencies.
+Examples
+The following examples demonstrate how to use dependencies in Pydantic AI:
+Weather Agent
+SQL Generation
+RAG
+Was this page helpful?
+Thanks for your feedback!
+Previous
+Agents
+Next
+Output
+© Pydantic Services Inc. 2025 to present

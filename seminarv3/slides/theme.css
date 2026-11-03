@@ -1,0 +1,13 @@
+/* Light 16:9 conference presentation. No network assets. */
+:root{--stage-bg:#E6EBF2;--slide-bg:#F7F9FC;--text:#17243A;--muted:#526279;--line:#D9E2ED;--model:#1D63B7;--runtime:#7545AA;--tool:#147E61;--state:#B66813;--risk:#B6384B}
+*{box-sizing:border-box}
+svg{width:1920px;height:1080px}
+.deck-stage{transition:none!important}
+.slide{transition:none!important}
+.build{opacity:0;transition:opacity .28s ease-out}
+.build.shown{opacity:1}
+.build.past{opacity:.65}
+.overview .build{opacity:1!important}
+.edge-label text{paint-order:stroke;stroke:#F7F9FC;stroke-width:7px;stroke-linejoin:round}
+@media(prefers-reduced-motion:reduce){.build{transition:none!important}}
+@media print{.build{opacity:1!important}@page{size:1920px 1080px;margin:0}}

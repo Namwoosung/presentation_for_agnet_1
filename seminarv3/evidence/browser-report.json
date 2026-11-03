@@ -1,0 +1,37 @@
+{
+  "slideCount": 60,
+  "visitedStates": 194,
+  "viewports": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "slidesChecked": 60,
+      "pass": true
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "slidesChecked": 60,
+      "pass": true
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "slidesChecked": 60,
+      "pass": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "slidesChecked": 60,
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "bounds": [],
+  "overlap": [],
+  "nodeOverflow": [],
+  "masterNodes": "PASS",
+  "externalDependencies": 0,
+  "keys": "PASS"
+}

@@ -1,0 +1,259 @@
+{
+  "H-ARCH": {
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/architecture",
+    "status": "FETCHED",
+    "sha256": "a0496330aef05256550bc1a51a9708e1c571b7ffda00c5b841e7be1eb257b736",
+    "chars": 15192
+  },
+  "H-LOOP": {
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/agent-loop",
+    "status": "FETCHED",
+    "sha256": "1eb3ce98e5a0fe1211448f7cf57ba7eead05493dd3d3d03045acfcbb3188dc84",
+    "chars": 11672
+  },
+  "H-PROMPT": {
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/prompt-assembly",
+    "status": "FETCHED",
+    "sha256": "d5b8ddb14636b0470829fff89b04bf763dbaa82e1804feece03b7ece696eb6fa",
+    "chars": 18685
+  },
+  "H-SESSION": {
+    "url": "https://hermes-agent.nousresearch.com/docs/user-guide/sessions",
+    "status": "FETCHED",
+    "sha256": "fdfc2637d83f07e94f90245ba37ef7bf7b01e3224275d468ceaab015df83c8d3",
+    "chars": 69358
+  },
+  "H-MEMORY": {
+    "url": "https://hermes-agent.nousresearch.com/docs/user-guide/which-file-does-what",
+    "status": "FETCHED",
+    "sha256": "f7401b9be526babc315dafbc4cc86060621b6f766e598a059849bd7baa99bd9c",
+    "chars": 6928
+  },
+  "H-SKILL": {
+    "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/skills",
+    "status": "FETCHED",
+    "sha256": "5d6f401f73f65a4b8e40d2f9a17738f012ad1e4396eaeea8f189e232bca14693",
+    "chars": 55764
+  },
+  "H-TOOLS": {
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/tools-runtime",
+    "status": "FETCHED",
+    "sha256": "77e33bd369e73ce91ac0797a9c621238343e04215cfffc51de8dcc565d961a23",
+    "chars": 12477
+  },
+  "H-DELEGATE": {
+    "url": "https://hermes-agent.nousresearch.com/docs/guides/delegation-patterns",
+    "status": "FETCHED",
+    "sha256": "fb77c4087223057e667f302c3fe0179a2bec56a26314f94bb4a861b42f7fc010",
+    "chars": 12017
+  },
+  "C": {
+    "url": "https://code.claude.com/docs/en/how-claude-code-works",
+    "status": "FETCHED",
+    "sha256": "3732725ce03c9a3b4e6c2d67498efe79179b7efc6b9cbf7b5a557f896c7cdfdf",
+    "chars": 122092
+  },
+  "C-MEM": {
+    "url": "https://code.claude.com/docs/en/memory",
+    "status": "FETCHED",
+    "sha256": "71b088ab07dc0a787c371e03bd0371077b5881c3feded69ebb024d1ddd88995f",
+    "chars": 232722
+  },
+  "C-SKILL": {
+    "url": "https://code.claude.com/docs/en/skills",
+    "status": "FETCHED",
+    "sha256": "89b875ed831a0bdcd154cbf7006a2ebb2e52f439d88f199ff74c76fbcc1274e3",
+    "chars": 474107
+  },
+  "C-POLICY": {
+    "url": "https://code.claude.com/docs/en/permissions",
+    "status": "FETCHED",
+    "sha256": "6279cdc6f456540a3b7fdae82dac6ef2f03e09ea416a61b956c3dba3f5d77f2d",
+    "chars": 319908
+  },
+  "C-HOOK": {
+    "url": "https://code.claude.com/docs/en/hooks",
+    "status": "FETCHED",
+    "sha256": "2f9f776f441a6a82c4aa6c4c90bbd4d3ef3a6603460c46910db5c9fc38a02879",
+    "chars": 1287538
+  },
+  "C-SANDBOX": {
+    "url": "https://code.claude.com/docs/en/sandboxing",
+    "status": "FETCHED",
+    "sha256": "ed4e95bd7782dd3aff07f7685b785ad2e47252c331fd4dfd62e737904d7d2caa",
+    "chars": 385378
+  },
+  "C-SUB": {
+    "url": "https://code.claude.com/docs/en/sub-agents",
+    "status": "FETCHED",
+    "sha256": "1ffd1aeb4f6ae56ea1434073fd9d576ed50d004c0490c21fc40cf8a506e70cdb",
+    "chars": 447107
+  },
+  "C-TEAM": {
+    "url": "https://code.claude.com/docs/en/agent-teams",
+    "status": "FETCHED",
+    "sha256": "aa7a5f6a04e9f6117ffb098f94c77ef2331e5ef18c2ffee82ba69b198e9aec98",
+    "chars": 183759
+  },
+  "P-AGENT": {
+    "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+    "status": "FETCHED",
+    "sha256": "540e93ae9f84fbd55aa2efd8092bb3c813a7e6508c409ba083f190292e1258be",
+    "chars": 133195
+  },
+  "P-TOOLS": {
+    "url": "https://pydantic.dev/docs/ai/tools-toolsets/tools/",
+    "status": "FETCHED",
+    "sha256": "8a1a34556ee3224556f1be52d775f2d112783d3717e57204e04169fccb6361a8",
+    "chars": 25573
+  },
+  "P-ADV": {
+    "url": "https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/",
+    "status": "FETCHED",
+    "sha256": "edaf6cdc3d2629fd5d1eea808c0bf7bc8cfd1cf55cb1beaae2544716c3f446bc",
+    "chars": 91287
+  },
+  "P-OUTPUT": {
+    "url": "https://pydantic.dev/docs/ai/core-concepts/output/",
+    "status": "FETCHED",
+    "sha256": "4982d0f8f740db86a02a56d535bb704968fe2a0e1673c82e9c0e21518907c87c",
+    "chars": 70256
+  },
+  "P-DEPS": {
+    "url": "https://pydantic.dev/docs/ai/core-concepts/dependencies/",
+    "status": "FETCHED",
+    "sha256": "81662fcfaac05d5eccf2b3c4d2b5b43a21cc2bf9697917a5ba664c2403753a96",
+    "chars": 16572
+  },
+  "P-DEFER": {
+    "url": "https://pydantic.dev/docs/ai/tools-toolsets/deferred-tools/",
+    "status": "FETCHED",
+    "sha256": "13f5ce113fc8c01567d62cf47f0b74786a1a8622ef03fcb6a96d891f5835f271",
+    "chars": 34782
+  },
+  "P-HARNESS": {
+    "url": "https://pydantic.dev/docs/ai/capabilities/overview/",
+    "status": "FETCHED",
+    "sha256": "edbb7be0b666b80fdbf7ce42778ed452368a1037c38377d7a908814ace81fff9",
+    "chars": 40060
+  },
+  "O": {
+    "url": "https://openai.github.io/openai-agents-python/running_agents/",
+    "status": "FETCHED",
+    "sha256": "394c38f5c6cb646493405d55162b97006fc346c1d8eb48729ea70dd22a03ee67",
+    "chars": 35978
+  },
+  "O-ORCH": {
+    "url": "https://openai.github.io/openai-agents-python/multi_agent/",
+    "status": "FETCHED",
+    "sha256": "04cdd5d259f7e7593f84bc9aa346fa2ad72f93c1bce9350b385fedb3ecd39246",
+    "chars": 6963
+  },
+  "O-GUARD": {
+    "url": "https://openai.github.io/openai-agents-python/guardrails/",
+    "status": "FETCHED",
+    "sha256": "644f53b4758f133dcc8b652c4dd489b8fbcb6c485de25486ec25885ebfce601d",
+    "chars": 17933
+  },
+  "O-HITL": {
+    "url": "https://openai.github.io/openai-agents-python/human_in_the_loop/",
+    "status": "FETCHED",
+    "sha256": "78d40916603f657b2bbc0e61faf0c6fdfa4fd669b2d5a9b5951562d9da63c69e",
+    "chars": 24442
+  },
+  "S": {
+    "url": "https://code.claude.com/docs/en/agent-sdk/overview",
+    "status": "FETCHED",
+    "sha256": "18a471a5fd97151e955b95a314b80f9f638ef34caf744561ed57a45fbf6b39eb",
+    "chars": 82423
+  },
+  "S-MCP": {
+    "url": "https://code.claude.com/docs/en/agent-sdk/custom-tools",
+    "status": "FETCHED",
+    "sha256": "abbdd7fd87df4ee5c88e6f875c2299127015fe3f86548d84755c91c53ca2a6ba",
+    "chars": 412554
+  },
+  "S-POLICY": {
+    "url": "https://code.claude.com/docs/en/agent-sdk/permissions",
+    "status": "FETCHED",
+    "sha256": "9817920717b6955ad985e8adb852cdcffdf0437339949d54d718665c124d9d06",
+    "chars": 171892
+  },
+  "G": {
+    "url": "https://adk.dev/runtime/",
+    "status": "FETCHED",
+    "sha256": "3682c11c0a8f9f33e30139b6d6f17766dd58ef3abfb6f9e9a3c72b6b8dc1de3d",
+    "chars": 4702
+  },
+  "G-EVENT": {
+    "url": "https://adk.dev/events/",
+    "status": "FETCHED",
+    "sha256": "ade1224975958b6cab51d01a487b6ef87d29f7409b841a38396732d3cbb89ec4",
+    "chars": 47381
+  },
+  "G-STATE": {
+    "url": "https://adk.dev/sessions/",
+    "status": "FETCHED",
+    "sha256": "042f32fdecba31b4c3e17bb73aa77ebb11eafb7d7d253f9043dbdc6abbd83b07",
+    "chars": 7130
+  },
+  "G-WORKFLOW": {
+    "url": "https://adk.dev/agents/workflow-agents/",
+    "status": "FETCHED",
+    "sha256": "ff0bd9ed10a37abb20b2a89b36c90588c22179b19723f64d71a37f0a38f96088",
+    "chars": 5111
+  },
+  "M": {
+    "url": "https://learn.microsoft.com/en-us/agent-framework/overview/",
+    "status": "FETCHED",
+    "sha256": "6d80ed83d8744094a035b97ec5ae9913cfb54606892981e09540aa42dd56f3c9",
+    "chars": 9221
+  },
+  "M-MIDDLE": {
+    "url": "https://learn.microsoft.com/en-us/agent-framework/concepts/agents/middleware/",
+    "status": "FETCHED",
+    "sha256": "414b0bf45e443895e3cebbfec7ef5d9db44337b3a9cfe080a346b40279dcd5ca",
+    "chars": 36812
+  },
+  "M-WORKFLOW": {
+    "url": "https://learn.microsoft.com/en-us/agent-framework/concepts/workflows/",
+    "status": "FETCHED",
+    "sha256": "ba90dc9e16152208abaf7edbd661e74b9aa858c870d6da24a98616455d04fd5b",
+    "chars": 4312
+  },
+  "M-CHECKPOINT": {
+    "url": "https://learn.microsoft.com/en-us/agent-framework/workflows/checkpoints",
+    "status": "FETCHED",
+    "sha256": "57be5fc4d2ebfb487cf2de2a5f72989298b290dade2156bff181a0ae9468580d",
+    "chars": 26552
+  },
+  "DEPLOY": {
+    "url": "https://docs.vllm.ai/en/latest/features/tool_calling/",
+    "status": "FETCHED",
+    "sha256": "d6884dc896c74afd96e9e5c52bc13ca23f3ee061928d9e08fefc75446179565b",
+    "chars": 42194
+  },
+  "H-SRC": {
+    "url": "https://github.com/NousResearch/hermes-agent/tree/6112c2adb9e11f69734a29be9d2696f345ffa06a",
+    "commit": "6112c2adb9e11f69734a29be9d2696f345ffa06a",
+    "status": "PINNED_COMMIT"
+  },
+  "P-SRC": {
+    "url": "https://github.com/pydantic/pydantic-ai/tree/a56a6d6f138d1e3a9c45a9697ea513bef47a6cea",
+    "commit": "a56a6d6f138d1e3a9c45a9697ea513bef47a6cea",
+    "status": "PINNED_COMMIT"
+  },
+  "S-SRC": {
+    "url": "https://github.com/anthropics/claude-agent-sdk-python/tree/e0da9b95223d3d112bfbccad41d2a32bad923bb5",
+    "commit": "e0da9b95223d3d112bfbccad41d2a32bad923bb5",
+    "status": "PINNED_COMMIT"
+  },
+  "BASE": {
+    "url": "../agent_framework_seminar_ii_codex_revised_blueprint.md",
+    "status": "USER_SPEC"
+  },
+  "DEMO": {
+    "url": "../agent_framework_seminar_ii_codex_revised_blueprint.md#5",
+    "status": "DESIGN_ONLY"
+  }
+}

@@ -1,0 +1,3 @@
+const sharp=require('C:/Users/namws/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
+const path=require('path');const root=path.resolve(__dirname,'../evidence');
+(async()=>{for(let group=0;group<15;group++){const parts=[];for(let j=0;j<4;j++){let i=group*4+j+1;parts.push({input:await sharp(path.join(root,'screenshots',`S${String(i).padStart(2,'0')}.png`)).resize(960,540).toBuffer(),left:j%2*960,top:Math.floor(j/2)*540});}await sharp({create:{width:1920,height:1080,channels:3,background:'#D9E2ED'}}).composite(parts).png().toFile(path.join(root,`contact-${String(group+1).padStart(2,'0')}.png`));}console.log('15 contact sheets created')})();

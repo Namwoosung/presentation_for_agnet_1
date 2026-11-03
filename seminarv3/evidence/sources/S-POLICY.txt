@@ -1,0 +1,1185 @@
+Configure permissions - Claude Code Docs
+Documentation Index
+Fetch the complete documentation index at:
+/docs/llms.txt
+Use this file to discover all available pages before exploring further.
+Skip to main content
+Assistant
+Responses are generated using AI and may contain mistakes.
+Claude Code Docs
+home page
+English
+Search...
+⌘
+K
+Ask Assistant
+⌘
+I
+Claude Developer Platform
+Open Claude Code
+Open Claude Code
+Search...
+Navigation
+Control and observability
+Configure permissions
+Getting started
+Build with Claude Code
+Plugins
+Administration
+Configuration
+Reference
+Agent SDK
+What's New
+Resources
+Agent SDK
+Overview
+Quickstart
+Migration Guide
+Troubleshooting
+Build agents
+Configure your agent
+Examples
+Core concepts
+How the agent loop works
+Use Claude Code features
+Work with sessions
+Persist sessions to external storage
+Input and output
+Streaming Input
+Handle approvals and user input
+Stream responses in real-time
+Get structured output from agents
+Extend with tools
+Give Claude custom tools
+Connect to external tools with MCP
+Scale to many tools with tool search
+Subagents in the SDK
+Customize behavior
+Modifying system prompts
+Extend agents with skills
+Plugins in the SDK
+Control and observability
+Configure permissions
+Intercept and control agent behavior with hooks
+Rewind file changes with checkpointing
+Track cost and usage
+Observability with OpenTelemetry
+Track todos
+Deployment
+Hosting the Agent SDK
+Securely deploying AI agents
+SDK references
+TypeScript SDK
+TypeScript V2 (removed)
+Python SDK
+On this page
+Back to top
+How permissions are evaluated
+Allow and deny rules
+Permission modes
+Available modes
+Set permission mode
+Mode details
+Accept edits mode (acceptEdits)
+Don’t ask mode (dontAsk)
+Bypass permissions mode (bypassPermissions)
+Plan mode (plan)
+Auto mode (auto)
+Related resources
+Control and observability
+Configure permissions
+Copy page
+Copy page
+Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.
+Copy page
+Copy page
+The Claude Agent SDK provides permission controls to manage how Claude uses tools. Use permission modes and rules to define what’s allowed automatically, and the
+canUseTool
+callback
+to handle everything else at runtime.
+​
+How permissions are evaluated
+If you load a plugin that contains a
+mod
+, see
+where a mod’s decisions fit among rules and hooks
+.
+When Claude requests a tool, the SDK checks permissions in this order:
+1
+Hooks
+Run
+hooks
+first. A hook can deny the call outright or pass it on. A hook that returns
+allow
+doesn’t skip the deny and ask rules below, which are evaluated regardless of the hook result.
+A
+PreToolUse
+hook that returns
+allow
+also can’t approve an
+rm
+or
+rmdir
+command whose target Claude Code recognizes as a
+critical path
+, such as
+rm -rf ~
+. For what that
+allow
+does in plan mode, see
+Hook approvals in plan mode
+.
+2
+Deny rules
+If a deny rule from
+disallowed_tools
+or
+settings.json
+matches, the call is denied and
+canUseTool
+isn’t called, even in
+bypassPermissions
+mode and even when a hook returned
+allow
+.
+In the TypeScript SDK, if you set the
+permission_policy
+of a
+custom tool
+to
+always_deny
+, a call to that tool is denied at this step.
+3
+Ask rules
+Check
+ask
+rules from
+settings.json
+. If an ask rule matches, the call falls through to your
+canUseTool
+callback
+for confirmation, even in
+bypassPermissions
+mode.
+Tools that require user interaction behave the same way:
+AskUserQuestion
+and MCP tools whose server sets
+_meta["anthropic/requiresUserInteraction"]
+always fall through to the callback, even when an allow rule matches. In
+dontAsk
+mode both cases are denied instead, because that mode never prompts. The MCP annotation requires Claude Code v2.1.199 or later.
+claude.ai connector
+tools your organization has set to
+ask
+also leave the flow at this step. Every call falls through to the callback, even in
+bypassPermissions
+mode and even when an allow rule matches. The callback receives the reason
+Your organization requires approval for this tool
+. In
+dontAsk
+mode the call is denied instead, because that mode never prompts.
+In the TypeScript SDK, if you set a custom tool’s
+permission_policy
+to
+always_ask
+, no allow rule approves its calls, not even an
+allowedTools
+entry. In
+dontAsk
+mode Claude Code denies those calls, and in
+auto
+,
+plan
+, or
+bypassPermissions
+mode it
+can approve them
+before your callback runs.
+4
+Permission mode
+Apply the active
+permission mode
+:
+In
+bypassPermissions
+mode, Claude Code approves everything that reaches this step except recognized
+critical-path removals
+and Bash commands flagged
+Dangerous rm operation not ruled out
+, which fall through instead.
+To run those removals with no prompt, see
+Turn off the critical-path removal prompt
+.
+In
+acceptEdits
+mode, Claude Code approves the file operations listed under
+Accept edits mode
+.
+In
+plan
+mode, Claude Code sends file-edit tools to your
+canUseTool
+callback regardless of allow rules.
+In other modes, the request falls through.
+5
+Allow rules
+Check
+allow
+rules (from
+allowed_tools
+and settings.json). If a rule matches, the tool is approved. A call the tool approves on its own is resolved at this step too, with no rule needed: for example a file read inside your working directories or a
+read-only Bash command
+.
+Recognized
+critical-path removals
+aren’t approved by an allow rule, and commands flagged
+Dangerous rm operation not ruled out
+aren’t approved by a
+Bash
+or
+Bash(*)
+rule. Whether they then reach your callback depends on the permission mode: in an Agent SDK session in
+auto
+mode, for example, Claude Code denies them by default without calling it. The
+Critical paths mode table
+lists what each mode does with them.
+An allow rule doesn’t approve a read from a
+network path
+.
+6
+canUseTool callback
+If not resolved by any of the above, call your
+canUseTool
+callback
+for a decision. In
+dontAsk
+mode, this step is skipped and the tool is denied, though a
+mod
+you installed can still approve
+some such calls
+.
+In the TypeScript SDK, if you set
+permissionPrompts: 'none'
+, your callback isn’t called at this step. A
+PermissionRequest
+hook
+still gets a chance to decide, and if it doesn’t, Claude Code denies the call. The option requires Claude Code v2.1.259 or later.
+If you pass a
+canUseTool
+callback in a configuration where the TypeScript SDK expects the evaluation order to auto-approve calls before the callback is consulted, the SDK emits a Node.js process warning once when the query is constructed. The warning’s code is
+CLAUDE_SDK_CAN_USE_TOOL_SHADOWED
+. Two configurations trigger it:
+permissionMode: 'bypassPermissions'
+: the warning text starts with
+canUseTool will not be invoked: permissionMode 'bypassPermissions'
+. Tool calls are approved before
+canUseTool
+is consulted, so your callback runs for only a few calls, such as the calls listed under
+Bypass permissions mode
+. To check the approved calls too, put your callback’s checks in a
+PreToolUse
+hook
+An
+allowedTools
+entry that is only a tool name, such as
+"Read"
+: the warning lists each such entry after
+canUseTool will not be invoked for:
+. Calls to a listed tool are approved before
+canUseTool
+is consulted, apart from the
+calls an allow rule never approves
+. To have your callback run for a listed tool’s calls that need approval, remove that tool’s entry from
+allowedTools
+Entries with a specifier such as
+Bash(ls *)
+and the
+acceptEdits
+mode don’t trigger it, and allow rules coming from settings files aren’t visible to the check.
+The warning doesn’t block any call or change any option. If your callback already receives every call you want to check, leave your configuration as it is. To log the warning, listen with
+process.on('warning', ...)
+and match the
+CLAUDE_SDK_CAN_USE_TOOL_SHADOWED
+code.
+This page focuses on
+allow and deny rules
+and
+permission modes
+. For the other steps:
+Hooks:
+run custom code to allow, deny, or modify tool requests. See
+Control execution with hooks
+.
+canUseTool callback:
+prompt users for approval at runtime, when no earlier step resolves the call. See
+Handle approvals and user input
+.
+​
+Allow and deny rules
+allowed_tools
+and
+disallowed_tools
+(TypeScript:
+allowedTools
+/
+disallowedTools
+) add entries to the allow and deny rule lists in the evaluation flow above. If you name one of the
+task-tracking tools
+in
+allowed_tools
+, Claude Code also opts the session in. Any other tool not listed in
+allowed_tools
+is still available to Claude, and a call to it that needs approval falls through to the permission mode. Deny rules behave differently depending on whether they name a tool or scope a pattern within one.
+Option
+Effect
+allowed_tools=["Read", "Grep"]
+Read
+and
+Grep
+are auto-approved, apart from
+reads from network paths
+. Other tools not listed here still exist, and calls to them that need approval fall through to the permission mode and
+canUseTool
+.
+disallowed_tools=["Bash"]
+The
+Bash
+tool definition is removed from the request. Claude does not see the tool and cannot attempt it.
+disallowed_tools=["Bash(rm *)"]
+Bash
+stays available. Calls matching
+rm *
+as written
+are denied in every permission mode, including
+bypassPermissions
+. Other
+Bash
+calls, including
+/bin/rm
+, fall through to the permission mode.
+disallowed_tools=["*"]
+Every tool definition is removed from the request. Tool-name globs are supported in deny rules:
+"*"
+matches every tool and
+"mcp__*"
+matches every MCP tool across all servers.
+Allow rules accept tool-name globs only after a literal
+mcp__<server>__
+prefix. The server segment must be glob-free so the rule names a specific server you configured:
+mcp__puppeteer__*
+matches every tool from the
+puppeteer
+server, and
+mcp__github__get_*
+matches its
+get_
+tools. An unanchored entry like
+allowed_tools=["*"]
+or
+allowed_tools=["mcp__*"]
+is ignored and doesn’t auto-approve anything.
+Scoped rules for
+Read
+and
+Edit
+take a path pattern.
+Edit(path)
+rules govern all built-in tools that write files, including
+Write
+and
+NotebookEdit
+; a
+Write(path)
+rule is never matched by the file permission checks.
+Use
+//path
+for an absolute filesystem path: a deny rule of
+Edit(//secrets/**)
+blocks writes anywhere under
+/secrets
+on disk. With a single leading slash,
+Edit(/secrets/**)
+anchors at the rule’s source instead. For rules passed through
+allowed_tools
+or
+disallowed_tools
+, that means the session’s working directory, so the rule doesn’t block
+/secrets
+on disk. See
+Read and Edit rules
+for the four anchor forms and how rules from settings files resolve.
+Auto-approved tools never reach
+canUseTool
+.
+A tool call approved at any earlier step, by
+acceptEdits
+or
+bypassPermissions
+, or by an allow rule, skips your
+canUseTool
+callback, so permission checks you put there are silently bypassed for that tool.
+If calls to a tool in
+allowed_tools
+still reach your
+canUseTool
+callback, or are denied in
+dontAsk
+mode, check whether they’re
+reads from network paths
+or among the following calls. No allow rule approves these calls. In
+dontAsk
+mode, which never prompts, Claude Code denies them without calling
+canUseTool
+, and in the other permission modes you handle them as each item says:
+AskUserQuestion
+, MCP tools marked
+_meta["anthropic/requiresUserInteraction"]
+, and connector tools
+your organization set to
+ask
+: answer them in the callback.
+Handle clarifying questions
+shows how to answer
+AskUserQuestion
+, and a connector call arrives with the reason
+Your organization requires approval for this tool
+Custom tools your application marks
+always_ask
+: decide the call in the callback. To stop these calls arriving,
+change the policy mid-session
+. In
+auto
+,
+plan
+, and
+bypassPermissions
+mode the call can instead be approved before the callback, in the cases listed under
+Permission modes that can approve an
+always_ask
+call
+Recognized
+rm
+and
+rmdir
+critical-path removals
+: in
+default
+,
+acceptEdits
+, and
+bypassPermissions
+mode, allow or deny the removal in the callback, where
+decisionReason
+starts with
+Dangerous rm
+. For
+auto
+and
+plan
+mode, see
+Critical-path removals in each permission mode
+. The check that recognizes these removals
+can miss some commands
+Bare name
+: an entry like
+Read
+or
+mcp__github__get_issue
+auto-approves every call to that tool apart from the
+actions no mode auto-approves
+and
+reads from network paths
+.
+Scoped rule
+: an entry like
+Bash(npm test *)
+auto-approves only matching calls, and other
+Bash
+calls that need approval still fall through to the callback.
+For checks that must run on every tool call, use a
+PreToolUse
+hook
+: hooks run before every other step, and a hook deny applies even in
+bypassPermissions
+mode.
+For a locked-down agent, pair
+allowedTools
+with
+permissionMode: "dontAsk"
+:
+const
+options
+=
+{
+allowedTools:
+[
+"Read"
+,
+"Glob"
+,
+"Grep"
+],
+permissionMode:
+"dontAsk"
+};
+The listed
+Read
+,
+Glob
+, and
+Grep
+calls are approved, apart from the
+actions no mode auto-approves
+and
+reads from network paths
+. Every other call that would prompt is denied instead, though a
+mod
+you installed can still approve
+some of those calls
+.
+Calls that need no approval in
+default
+mode run whether or not you list them. These include
+read-only Bash commands
+, tools like
+Agent
+that don’t ask before running, and file reads inside your working directories. To hide a built-in tool from Claude entirely rather than deny its calls, add its bare name to
+disallowedTools
+.
+allowed_tools
+does not constrain
+bypassPermissions
+.
+allowed_tools
+pre-approves the tools you list. Other unlisted tools are not matched by any allow rule and fall through to the permission mode, where
+bypassPermissions
+approves them. Setting
+allowed_tools=["Read"]
+alongside
+permission_mode="bypassPermissions"
+still approves every tool, including
+Bash
+,
+Write
+, and
+Edit
+. If you need
+bypassPermissions
+but want specific tools blocked, use
+disallowed_tools
+.
+You can also configure allow, deny, and ask rules declaratively in
+.claude/settings.json
+. These rules are read when the
+project
+setting source is enabled, which it is for default
+query()
+options. If you set
+setting_sources
+(TypeScript:
+settingSources
+) explicitly, include
+"project"
+for them to apply. See
+Permission settings
+for the rule syntax.
+​
+Permission modes
+Permission modes provide global control over how Claude uses tools. You can set the permission mode when calling
+query()
+or change it dynamically during streaming sessions.
+With Claude Code v2.1.302 or later, your app starts in
+default
+mode unless you set a permission mode or it gets one from
+permissions.defaultMode
+in its settings files. In
+default
+mode, Claude Code denies any tool call needing approval unless you approve it through an allow rule, hook,
+canUseTool
+callback, or permission prompt tool. If tool calls are denied, see
+Tool calls denied in
+claude -p
+and Agent SDK runs
+.
+​
+Available modes
+The SDK supports these permission modes:
+Mode
+Description
+Tool behavior
+default
+Standard permission behavior
+No mode-based auto-approvals; calls that need approval and match no allow rule trigger your
+canUseTool
+callback
+dontAsk
+Deny instead of prompting
+Any call that would otherwise prompt is denied without calling
+canUseTool
+, though a
+mod
+you installed can still approve
+some of those calls
+. Calls approved by
+allowed_tools
+or
+settings.json
+allow rules run, and so do calls that need no approval in
+default
+mode. Some calls, such as
+reads from network paths
+, are denied even when
+allowed_tools
+or an allow rule matches them. For the list, see
+Don’t ask mode
+acceptEdits
+Auto-accept file edits
+File edits and
+filesystem operations
+(
+mkdir
+,
+rm
+,
+mv
+, etc.) are automatically approved
+bypassPermissions
+Bypass permission checks
+Tools run without permission prompts, except for the
+actions no mode auto-approves
+and, outside a
+cloud session
+, custom tools your application
+marks
+always_ask
+. Use with caution
+plan
+Planning mode
+Claude explores and plans without editing your source files; file edits are never auto-approved and prompt through your
+canUseTool
+callback
+auto
+Model-classified approvals
+A model classifier reviews actions such as shell commands and network requests, allowing or blocking each one it reviews. See
+Auto mode
+for availability and the decision order
+Subagent inheritance:
+If your main session is in
+plan mode
+, a subagent whose
+AgentDefinition
+sets
+permissionMode: "acceptEdits"
+still runs in plan mode. That subagent’s
+Edit
+and
+Write
+calls on your source files still go to your
+canUseTool
+callback. Plan mode holds for the subagents you define too, so that handing work to one doesn’t get around reviewing the plan first.
+The subagent inherits
+plan
+,
+acceptEdits
+,
+auto
+, or
+bypassPermissions
+from the main session, and under a
+default
+- or
+dontAsk
+-mode main session it runs in the mode you set. Even then, Claude Code never applies a
+"bypassPermissions"
+value, and applies an
+"auto"
+value only when
+auto mode is available
+to that subagent. The
+bypassPermissions
+exception requires Claude Code v2.1.267 or later.
+Subagents may have different system prompts and less constrained behavior than your main agent, so inheriting
+bypassPermissions
+grants them full, autonomous system access. The
+actions no mode auto-approves
+still apply.
+​
+Set permission mode
+You can set the permission mode once when starting a query, or change it dynamically while the session is active.
+At query time
+During streaming
+Pass
+permission_mode
+(Python) or
+permissionMode
+(TypeScript) when creating a query.
+Python
+TypeScript
+import
+asyncio
+from
+claude_agent_sdk
+import
+query, ClaudeAgentOptions
+async
+def
+main
+():
+async
+for
+message
+in
+query(
+prompt
+=
+"Help me refactor this code"
+,
+options
+=
+ClaudeAgentOptions(
+permission_mode
+=
+"default"
+,
+# Set the mode here
+),
+):
+if
+hasattr
+(message,
+"result"
+):
+print
+(message.result)
+asyncio.run(main())
+import
+{
+query
+}
+from
+"@anthropic-ai/claude-agent-sdk"
+;
+async
+function
+main
+() {
+for
+await
+(
+const
+message
+of
+query
+({
+prompt:
+"Help me refactor this code"
+,
+options:
+{
+permissionMode:
+"default"
+// Set the mode here
+}
+})) {
+if
+(
+"result"
+in
+message
+) {
+console
+.
+log
+(
+message
+.
+result
+);
+}
+}
+}
+main
+();
+Call
+set_permission_mode()
+(Python) or
+setPermissionMode()
+(TypeScript) to change the mode mid-session. The new mode takes effect immediately for all subsequent tool requests. This lets you start restrictive and loosen permissions as trust builds, for example switching to
+acceptEdits
+after reviewing Claude’s initial approach.
+Python
+TypeScript
+import
+asyncio
+from
+claude_agent_sdk
+import
+ClaudeSDKClient, ClaudeAgentOptions
+async
+def
+main
+():
+async
+with
+ClaudeSDKClient(
+options
+=
+ClaudeAgentOptions(
+permission_mode
+=
+"default"
+,
+# Start in default mode
+)
+)
+as
+client:
+await
+client.query(
+"Help me refactor this code"
+)
+# Change mode dynamically mid-session
+await
+client.set_permission_mode(
+"acceptEdits"
+)
+# Process messages with the new permission mode
+async
+for
+message
+in
+client.receive_response():
+if
+hasattr
+(message,
+"result"
+):
+print
+(message.result)
+asyncio.run(main())
+import
+{
+query
+}
+from
+"@anthropic-ai/claude-agent-sdk"
+;
+async
+function
+main
+() {
+const
+q
+=
+query
+({
+prompt:
+"Help me refactor this code"
+,
+options:
+{
+permissionMode:
+"default"
+// Start in default mode
+}
+});
+// Change mode dynamically mid-session
+await
+q
+.
+setPermissionMode
+(
+"acceptEdits"
+);
+// Process messages with the new permission mode
+for
+await
+(
+const
+message
+of
+q
+) {
+if
+(
+"result"
+in
+message
+) {
+console
+.
+log
+(
+message
+.
+result
+);
+}
+}
+}
+main
+();
+​
+Mode details
+​
+Accept edits mode (
+acceptEdits
+)
+Auto-approves file operations so Claude can edit code without prompting. Other tools (like Bash commands that aren’t filesystem operations) still require normal permissions.
+Auto-approved operations:
+File edits (Edit, Write tools)
+Filesystem commands:
+mkdir
+,
+touch
+,
+rm
+,
+rmdir
+,
+mv
+,
+cp
+,
+sed
+Both apply only to paths inside the working directory or
+additionalDirectories
+. In
+acceptEdits
+mode, Claude Code doesn’t auto-approve the request when Claude:
+Works on a path outside that scope
+Writes to a protected path
+Removes a path that Claude Code recognizes as a
+critical path
+with
+rm
+or
+rmdir
+Runs
+touch
+with, for example, an option, a glob, or a
+timeout 5
+or
+LANG=C
+prefix
+Use when:
+you trust Claude’s edits and want faster iteration, such as during prototyping or when working in an isolated directory.
+​
+Don’t ask mode (
+dontAsk
+)
+Converts any permission prompt into a denial, without calling
+canUseTool
+, though a
+mod
+you installed can still approve
+some of those calls
+. Tools pre-approved by
+allowed_tools
+,
+settings.json
+allow rules, or a hook run as normal. Calls that need no approval in
+default
+mode also run as normal, such as file reads inside your working directories and calls to
+Agent
+.
+These calls are denied even when an allow rule matches:
+Connector tools
+your organization set to
+ask
+Tools that require user interaction, such as
+AskUserQuestion
+and MCP tools whose server sets
+_meta["anthropic/requiresUserInteraction"]
+Custom tools whose
+permission_policy
+your application sets to
+always_ask
+Reads from network paths
+Recognized
+critical-path removals
+If your
+PreToolUse
+hook returns
+allow
+for a recognized critical-path removal, a read from a network path, or a call to a tool marked
+always_ask
+, the call is still denied. The check that recognizes these removals
+can miss some commands
+.
+Use when:
+you want a fixed, explicit tool surface for a headless agent and prefer a hard deny over silent reliance on
+canUseTool
+being absent.
+​
+Bypass permissions mode (
+bypassPermissions
+)
+Auto-approves tool uses without prompting, except the
+actions no mode auto-approves
+. Hooks still execute and can block operations if needed. On Linux and macOS, Claude Code refuses to start in this mode as root or under
+sudo
+outside a
+recognized sandbox
+, and the query fails before the first turn.
+Use with extreme caution. Claude has full system access in this mode. Only use in controlled environments where you trust all possible operations.
+allowed_tools
+does not constrain this mode. Every tool is approved, not just the ones you listed. These controls still apply:
+Deny rules, explicit
+ask
+rules, and hooks are evaluated before the mode check and can still block a tool.
+Connector tools
+your organization set to
+ask
+, tools that require user interaction, and recognized
+critical-path removals
+still fall through to your
+canUseTool
+callback. The check that recognizes these removals
+can miss some commands
+, and you can
+turn off the critical-path removal prompt
+. Outside a
+cloud session
+, calls to custom tools your application
+marks
+always_ask
+fall through to the callback too.
+The
+cross-session messaging safeguards
+still apply.
+​
+Plan mode (
+plan
+)
+Claude explores the codebase and produces a plan without editing your source files. File edits are never auto-approved in plan mode, even when an allow rule matches or a
+PreToolUse
+hook returns
+allow
+. They prompt through your
+canUseTool
+callback instead.
+While auto mode is available to the session, commands Claude runs during planning don’t reach your callback by default, because the classifier model that
+auto mode
+uses
+reviews them instead
+. With that review on, the classifier can also approve read-only calls that would otherwise reach your callback, such as a
+WebFetch
+call with no allow rule.
+In the TypeScript SDK, if you set
+allowDangerouslySkipPermissions: true
+alongside
+permissionMode: 'plan'
+, file edits still reach your
+canUseTool
+callback. To switch a session that starts in plan mode to
+bypassPermissions
+later with
+setPermissionMode()
+, you need
+allowDangerouslySkipPermissions
+set from the start.
+Claude may use
+AskUserQuestion
+to clarify requirements before finalizing the plan. See
+Handle approvals and user input
+for handling these prompts.
+Use when:
+you want Claude to propose changes without executing them, such as during code review or when you need to approve changes before they’re made.
+​
+Auto mode (
+auto
+)
+A classifier model reviews actions such as shell commands and network requests before they run, and allows or blocks each one it reviews. For the models and providers auto mode requires and the order it evaluates actions in, see
+Eliminate permission prompts with auto mode
+.
+If you switch a session that’s in auto mode to a model that auto mode doesn’t support, using
+set_model()
+,
+setModel()
+, or
+applyFlagSettings()
+, the session changes to
+default
+mode:
+What you see
+: a
+system
+message with subtype
+status
+and
+permissionMode
+set to
+"default"
+, which the TypeScript SDK types as
+SDKStatusMessage
+. From then on, calls that need approval and match no allow rule reach your
+canUseTool
+callback.
+To return to auto mode
+: switch to a supported model, then call
+set_permission_mode("auto")
+or
+setPermissionMode("auto")
+. If you switch the model back without making that call, the session stays in
+default
+mode. While the unsupported model is active, the call fails with
+Cannot set permission mode to auto: auto mode unavailable for this model
+.
+The change to
+default
+mode after a
+set_model()
+,
+setModel()
+, or
+applyFlagSettings()
+call requires Claude Code v2.1.299 or later.
+​
+Related resources
+For the other steps in the permission evaluation flow:
+Handle approvals and user input
+: interactive approval prompts and clarifying questions
+Hooks guide
+: run custom code at key points in the agent lifecycle
+Permission rules
+: declarative allow/deny rules in
+settings.json
+Was this page helpful?
+Yes
+No
+Plugins in the SDK
+Intercept and control agent behavior with hooks
+Claude Code Docs
+home page
+x
+linkedin
+Company
+Anthropic
+Careers
+Economic Futures
+Research
+News
+Trust center
+Transparency
+Help and security
+Availability
+Status
+Support center
+Learn
+Courses
+MCP connectors
+Customer stories
+Engineering blog
+Events
+Powered by Claude
+Service partners
+Startups program
+Terms and policies
+Privacy choices
+Privacy policy
+Disclosure policy
+Usage policy
+Commercial terms
+Consumer terms
+{"docsConfig":{"theme":"mint","$schema":"https://mintlify.com/docs.json","name":"Claude Code Docs","description":"Official documentation for Claude Code, Anthropic's agentic coding tool available in the terminal, IDE, desktop app, and browser. Covers installation, configuration, skills, subagents, hooks, MCP, the Agent SDK, and reference material.","colors":{"primary":"#0E0E0E","light":"#D4A27F","dark":"#0E0E0E"},"logo":{"light":"https://mintcdn.com/claude-code/c5r9_6tjPMzFdDDT/logo/light.svg?fit=max\u0026auto=format\u0026n=c5r9_6tjPMzFdDDT\u0026q=85\u0026s=78fd01ff4f4340295a4f66e2ea54903c","dark":"https://mintcdn.com/claude-code/c5r9_6tjPMzFdDDT/logo/dark.svg?fit=max\u0026auto=format\u0026n=c5r9_6tjPMzFdDDT\u0026q=85\u0026s=1298a0c3b3a1da603b190d0de0e31712"},"favicon":"https://mintcdn.com/claude-code/T2WlxklWBkR5Y1mJ/favicon.ico?fit=max\u0026auto=format\u0026n=T2WlxklWBkR5Y1mJ\u0026q=85\u0026s=346a85952ae08d5ee90e3c34d4423930","appearance":{"default":"system"},"background":{"color":{"light":"#FDFDF7","dark":"#09090B"}},"navbar":{"links":[{"href":"https://platform.claude.com/","label":"Claude Developer Platform"}],"primary":{"type":"button","label":"Open Claude Code","href":"https://claude.ai/code"}},"footer":{"socials":{"x":"https://x.com/AnthropicAI","linkedin":"https://www.linkedin.com/company/anthropicresearch"},"links":[{"header":"Company","items":[{"label":"Anthropic","href":"https://www.anthropic.com/company"},{"label":"Careers","href":"https://www.anthropic.com/careers"},{"label":"Economic Futures","href":"https://www.anthropic.com/economic-futures"},{"label":"Research","href":"https://www.anthropic.com/research"},{"label":"News","href":"https://www.anthropic.com/news"},{"label":"Trust center","href":"https://trust.anthropic.com/"},{"label":"Transparency","href":"https://www.anthropic.com/transparency"}]},{"header":"Help and security","items":[{"label":"Availability","href":"https://www.anthropic.com/supported-countries"},{"label":"Status","href":"https://status.anthropic.com/"},{"label":"Support center","href":"https://support.claude.com/"}]},{"header":"Learn","items":[{"label":"Courses","href":"https://academy.claude.com/"},{"label":"MCP connectors","href":"https://claude.com/partners/mcp"},{"label":"Customer stories","href":"https://www.claude.com/customers"},{"label":"Engineering blog","href":"https://www.anthropic.com/engineering"},{"label":"Events","href":"https://www.anthropic.com/events"},{"label":"Powered by Claude","href":"https://claude.com/partners/powered-by-claude"},{"label":"Service partners","href":"https://claude.com/partners/services"},{"label":"Startups program","href":"https://claude.com/programs/startups"}]},{"header":"Terms and policies","items":[{"label":"Privacy choices","href":"https://www.anthropic.com/legal/privacy"},{"label":"Privacy policy","href":"https://www.anthropic.com/legal/privacy"},{"label":"Disclosure policy","href":"https://www.anthropic.com/responsible-disclosure-policy"},{"label":"Usage policy","href":"https://www.anthropic.com/legal/aup"},{"label":"Commercial terms","href":"https://www.anthropic.com/legal/commercial-terms"},{"label":"Consumer terms","href":"https://www.anthropic.com/legal/consumer-terms"}]}]},"seo":{"metatags":{"canonical":"https://code.claude.com/docs"}},"fonts":{"family":"Anthropic Sans"},"contextual":{"options":["copy","view","claude"],"display":"header"},"styling":{"latex":true},"navigation":{"languages":[{"language":"en","href":"en/overview"},{"language":"fr","href":"fr/overview"},{"language":"de","href":"de/overview"},{"language":"it","href":"it/overview"},{"language":"jp","href":"ja/overview"},{"language":"es","href":"es/overview"},{"language":"ko","href":"ko/overview"},{"language":"zh-CN","href":"zh-CN/overview"},{"language":"zh-TW","href":"zh-TW/overview"},{"language":"ru","href":"ru/overview"},{"language":"id","href":"id/overview"},{"language":"pt-BR","href":"pt/overview"}]}},"deployment":{"deploymentMetadataValue":{"subdomain":"claude-code","hasAudioNarration":false,"actualSubdomain":"claude-code","customDomains":["code.claude.com"],"gitSource":{"type":"github","owner":"anthropics","repo":"claude-code-docs","deployBranch":"main","contentDirectory":"","isPrivate":true,"mountPath":"","label":""},"chroma":{"liveDeploymentHistoryId":"6ae91c95fd925db213dea0be","collectionId":"9c0c447e-124e-48e0-acc4-032302b28744","schemaVersion":"v3","latestBuiltDeploymentHistoryId":"6ae91c95fd925db213dea0be"},"feedback":{"thumbs":true},"entitlements":{"AI_CHAT":{"status":"ENABLED"},"REMOVE_BRANDING":{"status":"ENABLED"},"CONTEXTUAL_FEEDBACK":{"status":"ENABLED","enabled":"ENABLED"},"CODE_SNIPPET_FEEDBACK":{"status":"ENABLED","enabled":"ENABLED"},"WEB_MCP":{"status":"ENABLED"},"NARRATION":{"status":"ENABLED"}},"buildId":"6ae926e469a1ccf3529c430b","clientVersion":"0.0.4045","searchFilterCounts":[{"language":"en","tag":"Agent SDK","count":60},{"language":"en","tag":"Plugins","count":56},{"language":"de","tag":"Neuigkeiten","count":50},{"language":"en","tag":"What's New","count":50},{"language":"es","tag":"Novedades","count":50},{"language":"fr","tag":"Nouveautés","count":50},{"language":"it","tag":"Novità","count":50},{"language":"ko","tag":"새로운 기능","count":50},{"language":"pt-BR","tag":"Novidades","count":50},{"language":"ru","tag":"Что нового","count":50},{"language":"zh-TW","tag":"最新消息","count":50},{"language":"de","tag":"Erste Schritte","count":49},{"language":"es","tag":"Primeros pasos","count":49},{"language":"fr","tag":"Premiers pas","count":49},{"language":"id","tag":"Memulai","count":49},{"language":"it","tag":"Per iniziare","count":49},{"language":"jp","tag":"はじめに","count":49},{"language":"ko","tag":"시작하기","count":49},{"language":"pt-BR","tag":"Primeiros passos","count":49},{"language":"ru","tag":"Начало работы","count":49},{"language":"zh-TW","tag":"快速入門","count":49},{"language":"en","tag":"Getting started","count":48},{"language":"zh-CN","tag":"快速入门","count":46},{"language":"en","tag":"Overview","count":41},{"language":"de","tag":"Agent SDK","count":36},{"language":"en","tag":"Setup and access","count":36},{"language":"es","tag":"Agent SDK","count":36},{"language":"id","tag":"Agent SDK","count":36},{"language":"it","tag":"Agent SDK","count":36},{"language":"jp","tag":"Agent SDK","count":36},{"language":"pt-BR","tag":"Agent SDK","count":36},{"language":"ru","tag":"Agent SDK","count":36},{"language":"zh-CN","tag":"Agent SDK","count":36},{"language":"zh-TW","tag":"Agent SDK","count":36},{"language":"de","tag":"Administration","count":34},{"language":"en","tag":"Administration","count":34},{"language":"es","tag":"Administración","count":34},{"language":"fr","tag":"Administration","count":34},{"language":"id","tag":"Administrasi","count":34},{"language":"it","tag":"Amministrazione","count":34},{"language":"jp","tag":"管理","count":34},{"language":"ko","tag":"관리","count":34},{"language":"pt-BR","tag":"Administração","count":34},{"language":"ru","tag":"Администрирование","count":34},{"language":"zh-CN","tag":"管理","count":34},{"language":"zh-TW","tag":"管理","count":34},{"language":"de","tag":"Plugins","count":32},{"language":"es","tag":"Plugins","count":32},{"language":"fr","tag":"SDK Agent","count":32},{"language":"fr","tag":"Plugins","count":32},{"language":"id","tag":"Plugin","count":32},{"language":"it","tag":"Plugin","count":32},{"language":"jp","tag":"プラグイン","count":32},{"language":"ko","tag":"Agent SDK","count":32},{"language":"ko","tag":"플러그인","count":32},{"language":"pt-BR","tag":"Plugins","count":32},{"language":"ru","tag":"Плагины","count":32},{"language":"zh-CN","tag":"插件","count":32},{"language":"zh-TW","tag":"外掛","count":32},{"language":"en","tag":"Reference","count":28},{"language":"es","tag":"Configuración","count":28},{"language":"jp","tag":"設定","count":28},{"language":"zh-TW","tag":"設定","count":28},{"language":"de","tag":"Konfiguration","count":25},{"language":"en","tag":"Configuration","count":25},{"language":"fr","tag":"Configuration","count":25},{"language":"id","tag":"Konfigurasi","count":25},{"language":"id","tag":"Apa yang Baru","count":25},{"language":"id","tag":"Yang Baru","count":25},{"language":"it","tag":"Configurazione","count":25},{"language":"jp","tag":"新機能","count":25},{"language":"jp","tag":"最新情報","count":25},{"language":"ko","tag":"구성","count":25},{"language":"pt-BR","tag":"Configuração","count":25},{"language":"ru","tag":"Конфигурация","count":25},{"language":"zh-CN","tag":"配置","count":25},{"language":"zh-CN","tag":"新功能","count":25},{"language":"zh-CN","tag":"最新动态","count":25},{"language":"en","tag":"Settings","count":24},{"language":"de","tag":"Mit Claude Code entwickeln","count":22},{"language":"es","tag":"Crea con Claude Code","count":22},{"language":"fr","tag":"Développer avec Claude Code","count":22},{"language":"id","tag":"Membangun dengan Claude Code","count":22},{"language":"it","tag":"Crea con Claude Code","count":22},{"language":"jp","tag":"Claude Code で構築","count":22},{"language":"ko","tag":"Claude Code로 만들기","count":22},{"language":"pt-BR","tag":"Desenvolva com Claude Code","count":22},{"language":"ru","tag":"Разработка с Claude Code","count":22},{"language":"zh-CN","tag":"使用 Claude Code 构建","count":22},{"language":"zh-TW","tag":"使用 Claude Code 打造","count":22},{"language":"de","tag":"Referenz","count":20},{"language":"es","tag":"Referencia","count":20},{"language":"fr","tag":"Référence","count":20},{"language":"id","tag":"Referensi","count":20},{"language":"it","tag":"Riferimento","count":20},{"language":"jp","tag":"リファレンス","count":20},{"language":"ko","tag":"레퍼런스","count":20},{"language":"pt-BR","tag":"Referência","count":20},{"language":"ru","tag":"Справочник","count":20},{"language":"zh-CN","tag":"参考","count":20},{"language":"de","tag":"Plattformen und Integrationen","count":19},{"language":"es","tag":"Plataformas e integraciones","count":19},{"language":"fr","tag":"Plateformes et intégrations","count":19},{"language":"id","tag":"Platform dan integrasi","count":19},{"language":"it","tag":"Piattaforme e integrazioni","count":19},{"language":"jp","tag":"プラットフォームと連携","count":19},{"language":"ko","tag":"플랫폼 및 통합","count":19},{"language":"pt-BR","tag":"Plataformas e integrações","count":19},{"language":"ru","tag":"Платформы и интеграции","count":19},{"language":"zh-CN","tag":"平台与集成","count":19},{"language":"zh-TW","tag":"平台與整合","count":19},{"language":"de","tag":"Code-Review und Pull Requests","count":14},{"language":"es","tag":"Revisión de código y pull requests","count":14},{"language":"fr","tag":"Revue de code et pull requests","count":14},{"language":"it","tag":"Code review e pull request","count":14},{"language":"ko","tag":"코드 리뷰 및 풀 리퀘스트","count":14},{"language":"pt-BR","tag":"Revisão de código e pull requests","count":14},{"language":"ru","tag":"Код-ревью и pull request","count":14},{"language":"zh-TW","tag":"程式碼審查與 pull request","count":14},{"language":"zh-TW","tag":"部署","count":11}]},"assistantConfig":{"enableAskAiButton":false,"enableStarterQuestions":false,"enableAskAiSearchBar":true},"basePath":"/docs","hasChatPermissions":true,"hasWebMcpPermissions":true,"toggles":[{"name":"kill-isr","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"assistant-bash","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"chat-bucketing-batched","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"agent-mintlify-slack","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"agent-integrations-settings","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"automations-pr-grouping","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"custom-prefix","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"analytics-v7","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"user-flows-analytics","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"no-publish-flow","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"workos-onboarding","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"llms-txt-v2","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"snapshot-serving-live","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"stripTemperatureMiddleware","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"support-platform-pylon-zendesk","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"snapshot-serving","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"instant-rollback","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"granular-notifications-server","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"granular-notifications","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"automations-fable","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"fixed-ai-action-pricing","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"automation-resolve-merge-conflict","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"scoped-publishing","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"mintql","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"page-level-analytics","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"editor-version-history-v2","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"billing-page-v2","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"full-page-search","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"workspace-projects","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"assistant-v5","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"byok-sep-25","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"fork-pr-previews","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"revalidation-jwt","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"vite-origin","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"billing-updated-9-15","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"workos-sso-scim","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"hobby-abuse-scan","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"dashboard-inbox","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"workos-signup","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"turbopuffer-dual-write","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"workos-enabled","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"approve-review-flow","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false},{"name":"sso-setup-deadline-banner","enabled":true,"variant":{"name":"disabled","enabled":false,"feature_enabled":true},"impressionData":false}],"googleFontsInlined":false},"customCss":[{"filePath":"button.css","content":".btn{position:relative;display:inline-flex;gap:.5rem;align-items:center;justify-content:center;flex-shrink:0;min-width:5rem;height:2.25rem;padding:.5rem 1rem;white-space:nowrap;font-family:Styrene;font-weight:600;border-radius:.5rem}"},{"filePath":"style.css","content":"@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-Regular-Static.otf) format(\"opentype\");font-weight:400;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-RegularItalic-Static.otf) format(\"opentype\");font-weight:400;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-Medium-Static.otf) format(\"opentype\");font-weight:500;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-MediumItalic-Static.otf) format(\"opentype\");font-weight:500;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-Semibold-Static.otf) format(\"opentype\");font-weight:600;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-SemiboldItalic-Static.otf) format(\"opentype\");font-weight:600;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-Bold-Static.otf) format(\"opentype\");font-weight:700;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Sans\";src:url(https://assets.claude.ai/Fonts/AnthropicSans-Text-BoldItalic-Static.otf) format(\"opentype\");font-weight:700;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Serif Display\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Display-Regular-Static.otf) format(\"opentype\");font-weight:400;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif Display\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Display-RegularItalic-Static.otf) format(\"opentype\");font-weight:400;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Serif Display\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Display-Medium-Static.otf) format(\"opentype\");font-weight:500;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif Display\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Display-Semibold-Static.otf) format(\"opentype\");font-weight:600;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif Display\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Display-Bold-Static.otf) format(\"opentype\");font-weight:700;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-Regular-Static.otf) format(\"opentype\");font-weight:400;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-RegularItalic-Static.otf) format(\"opentype\");font-weight:400;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-Medium-Static.otf) format(\"opentype\");font-weight:500;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-MediumItalic-Static.otf) format(\"opentype\");font-weight:500;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-Semibold-Static.otf) format(\"opentype\");font-weight:600;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-SemiboldItalic-Static.otf) format(\"opentype\");font-weight:600;font-style:italic;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-Bold-Static.otf) format(\"opentype\");font-weight:700;font-style:normal;font-display:swap}@font-face{font-family:\"Anthropic Serif\";src:url(https://assets.claude.ai/Fonts/AnthropicSerif-Text-BoldItalic-Static.otf) format(\"opentype\");font-weight:700;font-style:italic;font-display:swap}:root{--always-white:0 0% 100%;--always-black:0 0% 0%;--constant-book-cloth:15 55% 80%;--constant-clay:15 60% 85%;--constant-kraft:25 40% 83%;--constant-manilla:40 20% 92%;--constant-slate-000:0 0% 100%;--constant-slate-050:48 33.3% 97.1%;--constant-slate-100:53 28.6% 94.5%;--constant-slate-150:48 25% 92.2%;--constant-slate-200:50 20.7% 88.6%;--constant-slate-250:51 16.5% 84.5%;--constant-slate-300:50 11.5% 79.6%;--constant-slate-350:50 9% 73.7%;--constant-slate-400:49 6.5% 66.9%;--constant-slate-450:48 4.8% 59.2%;--constant-slate-500:53 3.2% 51.4%;--constant-slate-550:51 3.1% 43.7%;--constant-slate-600:48 2.7% 35.9%;--constant-slate-650:48 3.4% 29.2%;--constant-slate-700:60 2.5% 23.3%;--constant-slate-750:60 2.1% 18.4%;--constant-slate-800:60 2.7% 14.5%;--constant-slate-850:30 3.3% 11.8%;--constant-slate-900:30 4% 9.8%;--constant-slate-950:60 2.6% 7.6%;--constant-slate-1000:60 3.4% 5.7%}:root:not(.dark){--accent-brand:15 63.1% 59.6%;--accent-main-000:15 55.6% 52.4%;--accent-main-100:15 55.6% 52.4%;--accent-main-200:15 63.1% 59.6%;--accent-main-900:0 0% 0%;--accent-pro-000:251 34.2% 33.3%;--accent-pro-100:251 40% 45.1%;--accent-pro-200:251 61% 72.2%;--accent-pro-900:253 33.3% 91.8%;--accent-secondary-000:210 73.7% 40.2%;--accent-secondary-100:210 70.9% 51.6%;--accent-secondary-200:210 70.9% 51.6%;--accent-secondary-900:211 72% 90%;--bg-000:0 0% 100%;--bg-100:48 33.3% 97.1%;--bg-200:53 28.6% 94.5%;--bg-300:48 25% 92.2%;--bg-400:50 20.7% 88.6%;--bg-500:50 20.7% 88.6%;--border-100:30 3.3% 11.8%;--border-200:30 3.3% 11.8%;--border-300:30 3.3% 11.8%;--border-400:30 3.3% 11.8%;--danger-000:0 61.4% 22.4%;--danger-100:0 58.6% 34.1%;--danger-200:0 58.6% 34.1%;--danger-900:0 50% 95%;--oncolor-100:0 0% 100%;--oncolor-200:60 6.7% 97.1%;--oncolor-300:60 6.7% 97.1%;--text-000:60 2.6% 7.6%;--text-100:60 2.6% 7.6%;--text-200:60 2.5% 23.3%;--text-300:60 2.5% 23.3%;--text-400:51 3.1% 43.7%;--text-500:51 3.1% 43.7%}:root.dark{--accent-brand:15 63.1% 59.6%;--accent-main-000:15 55.6% 52.4%;--accent-main-100:15 63.1% 59.6%;--accent-main-200:15 63.1% 59.6%;--accent-main-900:0 0% 0%;--accent-pro-000:251 84.6% 74.5%;--accent-pro-100:251 40.2% 54.1%;--accent-pro-200:251 40% 45.1%;--accent-pro-900:250 25.3% 19.4%;--accent-secondary-000:210 71.1% 62%;--accent-secondary-100:210 70.9% 51.6%;--accent-secondary-200:210 70.9% 51.6%;--accent-secondary-900:210 55.9% 24.6%;--bg-000:60 2.1% 18.4%;--bg-100:60 2.7% 14.5%;--bg-200:30 3.3% 11.8%;--bg-300:60 2.6% 7.6%;--bg-400:60 3.4% 5.7%;--bg-500:60 3.4% 5.7%;--border-100:51 16.5% 84.5%;--border-200:51 16.5% 84.5%;--border-300:51 16.5% 84.5%;--border-400:51 16.5% 84.5%;--danger-000:0 73.1% 66.5%;--danger-100:0 58.6% 34.1%;--danger-200:0 58.6% 34.1%;--danger-900:0 23% 15.6%;--oncolor-100:0 0% 100%;--oncolor-200:60 6.7% 97.1%;--oncolor-300:60 6.7% 97.1%;--text-000:48 33.3% 97.1%;--text-100:48 33.3% 97.1%;--text-200:50 9% 73.7%;--text-300:50 9% 73.7%;--text-400:48 4.8% 59.2%;--text-500:48 4.8% 59.2%}#home-header{font-family:\"Anthropic Sans\",system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif;font-weight:400!important;font-size:50px;line-height:1.2;margin-bottom:1rem;color:--text-000;display:flex;align-items:baseline;justify-content:center;flex-wrap:nowrap}#localization-select-trigger>:has(img[src*=flags]),div[id^=localization-select-item]>:has(img[src*=flags]){display:none}@media (min-width:768px){#home-header{justify-content:center}}.build-with{font-family:\"Anthropic Sans\",system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif;letter-spacing:-.02em}.claude-wordmark-wrapper{display:inline-flex;align-items:baseline;margin-left:10px}.claude-wordmark{height:40px;width:auto;position:relative}.dark #home-header,.dark .description-text{color:#fff}.description-text{color:#000}.dark .claude-wordmark{filter:invert(1)}:root{--bg-color:#f0efea}.dark{--bg-color:#2b2b2b}#category-select,#content-container,#table-of-contents,.dropdown-item,.eyebrow,body,input{font-family:\"Anthropic Sans\",system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif}.eyebrow{text-transform:uppercase;letter-spacing:.02rem}#content-container h1,#content-container h2,#content-container h3,#content-container h4,#content-container h5,#content-container h6{font-family:\"Anthropic Serif Display\",Georgia,\"Times New Roman\",Times,serif;font-weight:400;letter-spacing:0;word-spacing:.1em}#content-container p{font-size:1rem;line-height:1.65rem}.font-extrabold{font-weight:600!important}.wide-table{width:100%;overflow-x:auto}.wide-table table{width:175%;margin-bottom:0}#prompt-library-container{margin:4rem auto;max-width:48rem;padding-left:1.25rem;padding-right:1.25rem}.prompt-library-title{font-size:24px;text-align:center;font-weight:700;color:#1f2937}.dark .prompt-library-title{color:#e5e7eb}.prompt-library-description{margin-top:1rem;text-align:center}.main-content{margin-bottom:10rem;max-width:64rem;margin-left:auto;margin-right:auto;padding-left:1.25rem;padding-right:1.25rem}.prompt-controllers{display:flex;gap:.5rem}.prompt-search-container{position:relative;flex:1 1 0%}.prompt-search-icon-container{display:flex;position:absolute;top:0;bottom:0;left:0;align-items:center;padding-left:.75rem}.prompt-search-icon{margin-left:.25rem;margin-right:.75rem;flex:none;width:1rem;height:1rem;background-color:#6b7280;mask-image:url(https://mintlify.b-cdn.net/v6.5.1/solid/magnifying-glass.svg);mask-repeat:no-repeat;mask-position:center center}input.prompt-search-bar{display:block;height:2.5rem;padding-left:2.5rem;border-radius:.75rem;border-width:1px;background-color:#fff;width:100%;color:#111827;box-shadow:0 1px 2px 0 rgba(0,0,0,.05)}.dark input.prompt-search-bar{color:#fff;background-color:rgb(var(--background-dark));border-color:#d1d5db1a}input.prompt-search-bar:focus{outline-color:rgb(var(--primary))}.dark input.prompt-search-bar:focus{outline-color:rgb(var(--primary-light))}.dark .dropdown-icon,.dark .prompt-search-icon{background-color:#ffffff80}#category-select{padding-left:1rem;padding-right:2.5rem;height:2.5rem;display:flex;align-items:center;border-radius:.75rem;border-width:1px;color:#111827;background-color:#fff;cursor:pointer;box-shadow:0 1px 2px 0 rgba(0,0,0,.05);white-space:nowrap}.dark #category-select{background-color:rgb(var(--background-dark));border-color:#d1d5db1a;color:#fff}#category-select:hover,.dropdown-item:hover{background-color:#f9fafb}.dark #category-select:hover,.dark .dropdown-item:hover{background-color:#ffffff0d}#category-select:focus{outline-color:rgb(var(--primary))}.dark #category-select:focus{outline-color:rgb(var(--primary-light))}#categories-dropdown{top:calc(100% + 4px);padding:.5rem;display:none;position:absolute;z-index:10;border-radius:.75rem;border-width:1px;width:100%;color:#111827;background-color:#fff;box-shadow:0 1px 2px 0 rgba(0,0,0,.05)}.dark #categories-dropdown{background-color:rgb(var(--background-dark));border-color:#d1d5db1a;color:#fff}#categories-dropdown-clickout{position:fixed;top:0;right:0;bottom:0;left:0;z-index:0}.dropdown-icon-container{display:flex;position:absolute;top:0;bottom:0;right:0;align-items:center;padding-right:.25rem}.dropdown-icon{margin-left:.25rem;margin-right:.75rem;flex:none;width:.75rem;height:.75rem;background-color:#6b7280;mask-image:url(https://mintlify.b-cdn.net/v6.5.1/solid/caret-down.svg);mask-repeat:no-repeat;mask-position:center center}#prompts-container{grid-template-columns:repeat(1,minmax(0,1fr));gap:2rem;display:grid;margin-top:2.5rem}.dropdown-item{padding:.25rem .5rem;border-radius:.375rem;display:flex;align-items:center;cursor:pointer}.check-icon{mask-image:url(https://mintlify.b-cdn.net/v6.5.1/solid/check.svg);height:.875rem;width:1rem;background-color:rgb(var(--primary-light));mask-repeat:no-repeat;mask-position:center center}.prompt-card{margin:-.75rem;padding:.75rem;display:flex;border-radius:1rem}.prompt-card:hover{background-color:#03071208}.dark .prompt-card:hover{background-color:#ffffff08}.prompt-icon-container{display:flex;flex:none;align-items:center;justify-content:center;margin-right:1.5rem;border-radius:.75rem;height:4rem;width:4rem;background-color:#cb785c1a}.prompt-icon{height:1.5rem;width:1.5rem;background-color:rgb(var(--primary-light));mask-repeat:no-repeat;mask-position:center center}.prompt-title{color:rgb(31 41 55);font-weight:600}.dark .prompt-title{color:rgb(229 231 235)}.prompt-description{margin-top:.25rem}@media (min-width:640px){#category-select{width:16rem}}@media (min-width:1024px){#prompts-container{grid-template-columns:repeat(2,minmax(0,1fr))}}.home-cards-custom{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,auto);gap:1.5rem}.home-cards-custom .card{background:0 0;border:.5px solid hsl(var(--border-300));border-radius:12px;padding:.25rem}@media (max-width:1024px){.home-cards-custom{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,auto)}}@media (max-width:768px){.home-cards-custom{grid-template-columns:1fr;grid-template-rows:repeat(6,auto)}}.relative{position:relative}.flex-1{flex:1 1 0%}.mermaid{position:relative;background-color:#fdfdfb;background-image:linear-gradient(rgba(235,219,188,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(235,219,188,.25) 1px,transparent 1px),linear-gradient(rgba(235,219,188,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(235,219,188,.1) 1px,transparent 1px);background-size:20px 20px,20px 20px,4px 4px,4px 4px;background-position:-1px -1px,-1px -1px,-1px -1px,-1px -1px;padding:20px;border-radius:8px;border:1px solid rgba(235,219,188,.4);box-shadow:0 2px 4px rgba(64,64,62,.08)}.dark .mermaid{background-color:#1a1918;background-image:linear-gradient(rgba(212,162,127,.15) 1px,transparent 1px),linear-gradient(90deg,rgba(212,162,127,.15) 1px,transparent 1px),linear-gradient(rgba(212,162,127,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(212,162,127,.08) 1px,transparent 1px);border:1px solid rgba(102,102,99,.5);box-shadow:0 2px 4px rgba(0,0,0,.2)}.digest-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;padding:.75rem 1rem;margin:1.5rem 0 2.5rem;border:1px solid hsl(var(--border-300)/.15);background:hsl(var(--bg-200));font-variant-numeric:tabular-nums;font-size:.875rem;color:hsl(var(--text-400))}#content-container .digest-meta a{color:hsl(var(--accent-main-100));font-weight:500;text-decoration:none;border-bottom:none}#content-container .digest-meta a:hover{text-decoration:underline}.digest-feature{position:relative;margin:2.5rem 0;padding:1.875rem 1.875rem 1.625rem;background:radial-gradient(circle,hsl(var(--text-000)/.025) 1px,transparent 1px) 0 0/18px 18px,linear-gradient(180deg,hsl(var(--constant-manilla)/.55),hsl(var(--constant-manilla)/.38));border:1px solid hsl(var(--border-300)/.12);box-shadow:inset 0 1px 0 hsl(var(--text-000)/.04),0 1px 2px hsl(var(--always-black)/.04)}.digest-feature::before{content:\"\";position:absolute;inset:0 auto 0 0;width:4px;background:hsl(var(--accent-brand))}.dark .digest-feature{background:radial-gradient(circle,hsl(var(--text-000)/.02) 1px,transparent 1px) 0 0/18px 18px,linear-gradient(180deg,hsl(var(--bg-000)/.75),hsl(var(--bg-000)/.5));border-color:hsl(var(--border-300)/.1);box-shadow:inset 0 1px 0 hsl(var(--text-000)/.03),0 1px 2px hsl(var(--always-black)/.25)}.digest-feature>:first-child{margin-top:0}.digest-feature>:last-child{margin-bottom:0}.digest-feature-header{display:flex;align-items:center;flex-wrap:wrap;gap:.625rem;margin:0 0 .75rem}#content-container .digest-feature-title{font-family:\"Anthropic Serif Display\",Georgia,serif;font-size:1.75rem;line-height:1.15;font-weight:500;letter-spacing:-.015em;color:hsl(var(--text-000));margin:0}#content-container .digest-feature-pill{font-family:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font-size:.75rem;line-height:1;letter-spacing:.01em;padding:.3rem .6rem;border-radius:999px;background:hsl(var(--accent-brand)/.12);color:hsl(var(--accent-main-000));border:1px solid hsl(var(--accent-brand)/.25);white-space:nowrap;transform:translateY(1px)}#content-container .digest-feature-lede{font-size:1.0625rem;line-height:1.65;color:hsl(var(--text-100));margin:0 0 1.25rem;max-width:none}#content-container .digest-feature-lede code{font-size:.875em;padding:.1em .35em}#content-container .digest-feature-try{font-size:.875rem;color:hsl(var(--text-400));margin:1.25rem 0 .5rem}#content-container .digest-feature .frame{margin:1rem 0;border-radius:0;padding:0}#content-container .digest-feature .frame>*,#content-container .digest-feature [class*=CodeBlock],#content-container .digest-feature pre{border-radius:0}#content-container .digest-feature-link{display:inline-flex;align-items:center;gap:.35rem;font-size:.875rem;font-weight:500;color:hsl(var(--accent-main-100));text-decoration:none;border-bottom:none;margin-top:.75rem}#content-container .digest-feature-link::after{content:\"→\";transition:transform 120ms ease-out}#content-container .digest-feature-link:hover::after{transform:translateX(3px)}.digest-wins{margin:2.5rem 0;padding:1.5rem 1.75rem 1.25rem;background:hsl(var(--bg-200));border:1px solid hsl(var(--border-300)/.1)}.dark .digest-wins{background:hsl(var(--bg-200)/.6)}#content-container .digest-wins-title{font-family:\"Anthropic Serif Display\",Georgia,serif;font-size:1.25rem;font-weight:500;color:hsl(var(--text-000));margin:0 0 .75rem}.digest-wins-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));column-gap:2rem}#content-container .digest-wins-grid>div{position:relative;font-size:.875rem;line-height:1.5;color:hsl(var(--text-300));padding:.5rem 0 .5rem 1.125rem;border-top:1px solid hsl(var(--border-300)/.06);margin:0}#content-container .digest-wins-grid>div::before{content:\"+\";position:absolute;left:0;top:.5rem;font-family:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font-size:.8125rem;font-weight:600;color:hsl(var(--accent-brand))}#content-container .digest-wins-grid>div:first-child,#content-container .digest-wins-grid>div:nth-child(2){border-top:none;padding-top:0}#content-container .digest-wins-grid>div:first-child::before,#content-container .digest-wins-grid>div:nth-child(2)::before{top:0}#content-container .digest-wins-grid code{font-size:.8125rem;padding:.1em .3em}:root{--toc-wrapper-max:92rem;--toc-wrapper-pad:2rem;--toc-col:19rem;--toc-side:28rem;--toc-btn-size:1.75rem}#toc-collapse-toggle{display:none;align-items:center;justify-content:center;position:fixed;top:10rem;right:calc(max((100% - var(--toc-wrapper-max))/2,0px) + var(--toc-wrapper-pad) + var(--toc-col) - var(--toc-btn-size) - .35rem);transition:right 200ms ease-out;z-index:30;width:var(--toc-btn-size);height:var(--toc-btn-size);border-radius:9999px;border:1px solid hsl(var(--border-300)/.15);background:hsl(var(--bg-100));color:hsl(var(--text-400));cursor:pointer}#toc-collapse-toggle:hover{background:hsl(var(--bg-300));color:hsl(var(--text-100))}#toc-collapse-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}#toc-collapse-toggle .toc-glyph{display:none;stroke-width:2}@media print{#toc-collapse-toggle{display:none!important}}@media (prefers-reduced-motion:reduce){#toc-collapse-toggle{transition:none}}@media (min-width:1280px){html:has(#table-of-contents-layout) #toc-collapse-toggle{display:flex}html.toc-collapsed #toc-collapse-toggle .toc-chevron{transform:rotate(180deg)}html.toc-collapsed #toc-collapse-toggle{right:.5rem;width:auto;padding:0 .5rem;gap:.25rem}html.toc-collapsed #toc-collapse-toggle .toc-glyph{display:block}html.toc-collapsed #table-of-contents-layout{display:none!important}html.toc-collapsed #content-side-layout:has(#table-of-contents-layout){display:none!important}html.toc-collapsed #content-container:has(#table-of-contents-layout) #content-area{width:100%!important}html.toc-collapsed #content-container:has(#table-of-contents-layout) #content-area>*{max-width:calc(var(--toc-wrapper-max) - var(--toc-side))}}@media (max-width:640px){.digest-feature{margin:1.5rem 0}#content-container .digest-feature-title{font-size:1.375rem}.digest-feature,.digest-wins{padding:1.25rem 1rem 1rem}.digest-wins-grid{grid-template-columns:1fr}#content-container .digest-wins-grid>div:nth-child(2){border-top:1px solid hsl(var(--border-300)/.06);padding-top:.5rem}#content-container .digest-wins-grid>div:nth-child(2)::before{top:.5rem}}[role=menu]:has(>.nav-dropdown-item){width:340px;max-width:calc(100vw - 32px);max-height:min(680px,calc(100vh - 130px));padding:8px;border-radius:16px}[role=menu]:has(>.nav-dropdown-item:nth-child(5)){width:640px;display:grid;grid-template-columns:1fr 1fr;column-gap:8px;align-content:start}.nav-dropdown-item{padding:9px 12px}.nav-dropdown-item span.text-sm{font-size:14.5px;font-weight:600;color:#141413}.nav-dropdown-item span.text-xs{font-size:13.5px;line-height:1.4;color:#73726c}.dark .nav-dropdown-item span.text-sm{color:#faf9f5}.dark .nav-dropdown-item span.text-xs{color:#97958c}@media (max-width:700px){[role=menu]:has(>.nav-dropdown-item:nth-child(5)){width:340px;display:block}}.nav-tabs .nav-tabs-item:focus-visible{outline:2px solid currentColor;outline-offset:-4px;border-radius:8px}#navigation-items button[aria-haspopup=menu]:not(#localization-select-trigger)~button[aria-haspopup=menu]{display:none}[data-base-ui-portal]:has(.nav-dropdown-item):has(~[data-base-ui-portal] .nav-dropdown-item){visibility:hidden;pointer-events:none}"}],"page":{"pagePath":"en/agent-sdk/permissions","slug":"/en/agent-sdk/permissions","pageMetadata":{"title":"Configure permissions","description":"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.","href":"/en/agent-sdk/permissions"},"description":{"compiledSource":"\"use strict\";\nconst {jsx: _jsx} = arguments[0];\nconst {useMDXComponents: _provideComponents} = arguments[0];\nfunction _createMdxContent(props) {\n  const _components = {\n    p: \"p\",\n    ..._provideComponents(),\n    ...props.components\n  };\n  return _jsx(_components.p, {\n    children: \"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\"\n  });\n}\nfunction MDXContent(props = {}) {\n  const {wrapper: MDXLayout} = {\n    ..._provideComponents(),\n    ...props.components\n  };\n  return MDXLayout ? _jsx(MDXLayout, {\n    ...props,\n    children: _jsx(_createMdxContent, {\n      ...props\n    })\n  }) : _createMdxContent(props);\n}\nreturn {\n  default: MDXContent\n};\n","frontmatter":{},"scope":{}},"pageType":"default","mdx":{"mdxSource":{"compiledSource":"\"use strict\";const{Fragment:_Fragment,jsx:_jsx,jsxs:_jsxs}=arguments[0];const{useMDXComponents:_provideComponents}=arguments[0];function _createMdxContent(props){const _components={a:`a`,code:`code`,li:`li`,p:`p`,pre:`pre`,span:`span`,strong:`strong`,tbody:`tbody`,td:`td`,th:`th`,thead:`thead`,tr:`tr`,ul:`ul`,..._provideComponents(),...props.components},{CodeBlock,CodeGroup,Heading,Note,OptimizedImage,Step,Steps,Tab,Table,Tabs,Warning}=_components;if(!CodeBlock)_missingMdxReference(`CodeBlock`,true);if(!CodeGroup)_missingMdxReference(`CodeGroup`,true);if(!Heading)_missingMdxReference(`Heading`,true);if(!Note)_missingMdxReference(`Note`,true);if(!OptimizedImage)_missingMdxReference(`OptimizedImage`,true);if(!Step)_missingMdxReference(`Step`,true);if(!Steps)_missingMdxReference(`Steps`,true);if(!Tab)_missingMdxReference(`Tab`,true);if(!Table)_missingMdxReference(`Table`,true);if(!Tabs)_missingMdxReference(`Tabs`,true);if(!Warning)_missingMdxReference(`Warning`,true);return _jsxs(_Fragment,{children:[_jsxs(_components.p,{children:[`The Claude Agent SDK provides permission controls to manage how Claude uses tools. Use permission modes and rules to define what’s allowed automatically, and the `,_jsxs(_components.a,{href:`/en/agent-sdk/user-input`,children:[_jsx(_components.code,{children:`canUseTool`}),` callback`]}),` to handle everything else at runtime.`]}),`\n`,_jsx(Heading,{level:`2`,id:`how-permissions-are-evaluated`,children:`How permissions are evaluated`}),`\n`,_jsx(Note,{children:_jsxs(_components.p,{children:[`If you load a plugin that contains a `,_jsx(_components.a,{href:`/en/plugins/mods/overview`,children:`mod`}),`, see `,_jsx(_components.a,{href:`/en/permissions#precedence-among-rules-hooks-and-mods`,children:`where a mod’s decisions fit among rules and hooks`}),`.`]})}),`\n`,_jsx(_components.p,{children:`When Claude requests a tool, the SDK checks permissions in this order:`}),`\n`,_jsxs(Steps,{children:[_jsxs(Step,{title:`Hooks`,children:[_jsxs(_components.p,{children:[`Run `,_jsx(_components.a,{href:`/en/agent-sdk/hooks`,children:`hooks`}),` first. A hook can deny the call outright or pass it on. A hook that returns `,_jsx(_components.code,{children:`allow`}),` doesn’t skip the deny and ask rules below, which are evaluated regardless of the hook result.`]}),_jsxs(_components.p,{children:[`A `,_jsx(_components.code,{children:`PreToolUse`}),` hook that returns `,_jsx(_components.code,{children:`allow`}),` also can’t approve an `,_jsx(_components.code,{children:`rm`}),` or `,_jsx(_components.code,{children:`rmdir`}),` command whose target Claude Code recognizes as a `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical path`}),`, such as `,_jsx(_components.code,{children:`rm -rf ~`}),`. For what that `,_jsx(_components.code,{children:`allow`}),` does in plan mode, see `,_jsx(_components.a,{href:`/en/permissions#hook-approvals-in-plan-mode`,children:`Hook approvals in plan mode`}),`.`]})]}),_jsxs(Step,{title:`Deny rules`,children:[_jsxs(_components.p,{children:[`If a deny rule from `,_jsx(_components.code,{children:`disallowed_tools`}),` or `,_jsx(_components.a,{href:`/en/settings-reference#permission-settings`,children:`settings.json`}),` matches, the call is denied and `,_jsx(_components.a,{href:`/en/agent-sdk/user-input`,children:_jsx(_components.code,{children:`canUseTool`})}),` isn’t called, even in `,_jsx(_components.a,{href:`#bypass-permissions-mode-bypasspermissions`,children:_jsx(_components.code,{children:`bypassPermissions`})}),` mode and even when a hook returned `,_jsx(_components.code,{children:`allow`}),`.`]}),_jsxs(_components.p,{children:[`In the TypeScript SDK, if you set the `,_jsx(_components.code,{children:`permission_policy`}),` of a `,_jsx(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:`custom tool`}),` to `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#mcpservertoolpolicy`,children:_jsx(_components.code,{children:`always_deny`})}),`, a call to that tool is denied at this step.`]})]}),_jsxs(Step,{title:`Ask rules`,children:[_jsxs(_components.p,{children:[`Check `,_jsx(_components.code,{children:`ask`}),` rules from `,_jsx(_components.a,{href:`/en/settings-reference#permission-settings`,children:`settings.json`}),`. If an ask rule matches, the call falls through to your `,_jsxs(_components.a,{href:`/en/agent-sdk/user-input`,children:[_jsx(_components.code,{children:`canUseTool`}),` callback`]}),` for confirmation, even in `,_jsx(_components.code,{children:`bypassPermissions`}),` mode.`]}),_jsxs(_components.p,{children:[`Tools that require user interaction behave the same way: `,_jsx(_components.code,{children:`AskUserQuestion`}),` and MCP tools whose server sets `,_jsx(_components.a,{href:`/en/mcp#require-approval-for-a-specific-tool`,children:_jsx(_components.code,{children:`_meta[\"anthropic/requiresUserInteraction\"]`})}),` always fall through to the callback, even when an allow rule matches. In `,_jsx(_components.code,{children:`dontAsk`}),` mode both cases are denied instead, because that mode never prompts. The MCP annotation requires Claude Code v2.1.199 or later.`]}),_jsxs(_components.p,{children:[_jsx(_components.a,{href:`/en/mcp#organization-controls-on-connector-tools`,children:`claude.ai connector`}),` tools your organization has set to `,_jsx(_components.code,{children:`ask`}),` also leave the flow at this step. Every call falls through to the callback, even in `,_jsx(_components.code,{children:`bypassPermissions`}),` mode and even when an allow rule matches. The callback receives the reason `,_jsx(_components.code,{children:`Your organization requires approval for this tool`}),`. In `,_jsx(_components.code,{children:`dontAsk`}),` mode the call is denied instead, because that mode never prompts.`]}),_jsxs(_components.p,{children:[`In the TypeScript SDK, if you set a custom tool’s `,_jsx(_components.code,{children:`permission_policy`}),` to `,_jsx(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:_jsx(_components.code,{children:`always_ask`})}),`, no allow rule approves its calls, not even an `,_jsx(_components.code,{children:`allowedTools`}),` entry. In `,_jsx(_components.code,{children:`dontAsk`}),` mode Claude Code denies those calls, and in `,_jsx(_components.code,{children:`auto`}),`, `,_jsx(_components.code,{children:`plan`}),`, or `,_jsx(_components.code,{children:`bypassPermissions`}),` mode it `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#permission-modes-that-can-approve-an-always_ask-call`,children:`can approve them`}),` before your callback runs.`]})]}),_jsxs(Step,{title:`Permission mode`,children:[_jsxs(_components.p,{children:[`Apply the active `,_jsx(_components.a,{href:`#permission-modes`,children:`permission mode`}),`:`]}),_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[`In `,_jsx(_components.code,{children:`bypassPermissions`}),` mode, Claude Code approves everything that reaches this step except recognized `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical-path removals`}),` and Bash commands flagged `,_jsx(_components.a,{href:`/en/permission-modes#dangerous-rm-operation-not-ruled-out`,children:_jsx(_components.code,{children:`Dangerous rm operation not ruled out`})}),`, which fall through instead.`,`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[`To run those removals with no prompt, see `,_jsx(_components.a,{href:`/en/permission-modes#turn-off-the-critical-path-removal-prompt-in-bypasspermissions-mode`,children:`Turn off the critical-path removal prompt`}),`.`]}),`\n`]}),`\n`]}),`\n`,_jsxs(_components.li,{children:[`In `,_jsx(_components.code,{children:`acceptEdits`}),` mode, Claude Code approves the file operations listed under `,_jsx(_components.a,{href:`#accept-edits-mode-acceptedits`,children:`Accept edits mode`}),`.`]}),`\n`,_jsxs(_components.li,{children:[`In `,_jsx(_components.code,{children:`plan`}),` mode, Claude Code sends file-edit tools to your `,_jsx(_components.code,{children:`canUseTool`}),` callback regardless of allow rules.`]}),`\n`,_jsx(_components.li,{children:`In other modes, the request falls through.`}),`\n`]})]}),_jsxs(Step,{title:`Allow rules`,children:[_jsxs(_components.p,{children:[`Check `,_jsx(_components.code,{children:`allow`}),` rules (from `,_jsx(_components.code,{children:`allowed_tools`}),` and settings.json). If a rule matches, the tool is approved. A call the tool approves on its own is resolved at this step too, with no rule needed: for example a file read inside your working directories or a `,_jsx(_components.a,{href:`/en/permissions#read-only-commands`,children:`read-only Bash command`}),`.`]}),_jsxs(_components.p,{children:[`Recognized `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical-path removals`}),` aren’t approved by an allow rule, and commands flagged `,_jsx(_components.code,{children:`Dangerous rm operation not ruled out`}),` aren’t approved by a `,_jsx(_components.code,{children:`Bash`}),` or `,_jsx(_components.code,{children:`Bash(*)`}),` rule. Whether they then reach your callback depends on the permission mode: in an Agent SDK session in `,_jsx(_components.code,{children:`auto`}),` mode, for example, Claude Code denies them by default without calling it. The `,_jsx(_components.a,{href:`/en/permission-modes#critical-path-removals-in-each-permission-mode`,children:`Critical paths mode table`}),` lists what each mode does with them.`]}),_jsxs(_components.p,{children:[`An allow rule doesn’t approve a read from a `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`network path`}),`.`]})]}),_jsxs(Step,{title:`canUseTool callback`,children:[_jsxs(_components.p,{children:[`If not resolved by any of the above, call your `,_jsxs(_components.a,{href:`/en/agent-sdk/user-input`,children:[_jsx(_components.code,{children:`canUseTool`}),` callback`]}),` for a decision. In `,_jsx(_components.code,{children:`dontAsk`}),` mode, this step is skipped and the tool is denied, though a `,_jsx(_components.a,{href:`/en/plugins/mods/overview`,children:`mod`}),` you installed can still approve `,_jsx(_components.a,{href:`/en/permissions#precedence-among-rules-hooks-and-mods`,children:`some such calls`}),`.`]}),_jsxs(_components.p,{children:[`In the TypeScript SDK, if you set `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#options`,children:_jsx(_components.code,{children:`permissionPrompts: 'none'`})}),`, your callback isn’t called at this step. A `,_jsxs(_components.a,{href:`/en/hooks#permissionrequest`,children:[_jsx(_components.code,{children:`PermissionRequest`}),` hook`]}),` still gets a chance to decide, and if it doesn’t, Claude Code denies the call. The option requires Claude Code v2.1.259 or later.`]})]})]}),`\n`,_jsx(OptimizedImage,{src:`https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=c771ad9085b1277d3708027a49c744bc`,className:`dark:mint-hidden`,alt:`Diagram of the six-step permission evaluation flow matching the steps above: a tool request passes through hooks, deny rules, ask rules, permission mode, allow rules, and canUseTool. Hooks, deny rules, and canUseTool can route down to Blocked; permission mode bypass, allow rules, and canUseTool can route up to Execute; ask rules route to canUseTool.`,\"data-og-width\":`1180`,width:`1180`,\"data-og-height\":`260`,height:`260`,\"data-path\":`images/agent-sdk/permissions-flow.svg`,\"data-optimize\":`true`,\"data-opv\":`3`,srcset:`https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=280\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=8669f9e6e16b8ca86c5f3c72fbdf03cc 280w, https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=560\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=14c7af249edb687223c48fb072da2625 560w, https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=840\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=f20eaedf30caec64048a92faaa317841 840w, https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=1100\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=671392ad4398e1a1e6c95c3f6a257eba 1100w, https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=1650\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=94a27030b76597766d042b6657ca4b67 1650w, https://mintcdn.com/claude-code/jYgs7qigNjO1Badj/images/agent-sdk/permissions-flow.svg?w=2500\u0026fit=max\u0026auto=format\u0026n=jYgs7qigNjO1Badj\u0026q=85\u0026s=d1a89c8f4d39289ae0b6e244847890ac 2500w`}),`\n`,_jsx(OptimizedImage,{src:`https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=e53a91e9059cbf51852b7cedb4dd4251`,className:`mint-hidden dark:mint-block`,alt:`Diagram of the six-step permission evaluation flow matching the steps above: a tool request passes through hooks, deny rules, ask rules, permission mode, allow rules, and canUseTool. Hooks, deny rules, and canUseTool can route down to Blocked; permission mode bypass, allow rules, and canUseTool can route up to Execute; ask rules route to canUseTool.`,\"data-og-width\":`1180`,width:`1180`,\"data-og-height\":`260`,height:`260`,\"data-path\":`images/agent-sdk/permissions-flow-dark.svg`,\"data-optimize\":`true`,\"data-opv\":`3`,srcset:`https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=280\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=88451c708372d112739caa1b28317b98 280w, https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=560\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=ccbf1c7321e7b9656006c50e750caf7c 560w, https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=840\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=e883f56aa4a416c94abe1766971999dc 840w, https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=1100\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=c778659acb3c294aa4949e006d73fc8a 1100w, https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=1650\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=93a815ce741184ebe129ffbbfb55c7b1 1650w, https://mintcdn.com/claude-code/_xqph1dUOslCOwsj/images/agent-sdk/permissions-flow-dark.svg?w=2500\u0026fit=max\u0026auto=format\u0026n=_xqph1dUOslCOwsj\u0026q=85\u0026s=b1536fb55d538b25c2b41d1fdcdecddd 2500w`}),`\n`,_jsxs(_components.p,{children:[`If you pass a `,_jsx(_components.code,{children:`canUseTool`}),` callback in a configuration where the TypeScript SDK expects the evaluation order to auto-approve calls before the callback is consulted, the SDK emits a Node.js process warning once when the query is constructed. The warning’s code is `,_jsx(_components.code,{children:`CLAUDE_SDK_CAN_USE_TOOL_SHADOWED`}),`. Two configurations trigger it:`]}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[_jsx(_components.code,{children:`permissionMode: 'bypassPermissions'`}),`: the warning text starts with `,_jsx(_components.code,{children:`canUseTool will not be invoked: permissionMode 'bypassPermissions'`}),`. Tool calls are approved before `,_jsx(_components.code,{children:`canUseTool`}),` is consulted, so your callback runs for only a few calls, such as the calls listed under `,_jsx(_components.a,{href:`#bypass-permissions-mode-bypasspermissions`,children:`Bypass permissions mode`}),`. To check the approved calls too, put your callback’s checks in a `,_jsxs(_components.a,{href:`/en/agent-sdk/hooks`,children:[_jsx(_components.code,{children:`PreToolUse`}),` hook`]})]}),`\n`,_jsxs(_components.li,{children:[`An `,_jsx(_components.code,{children:`allowedTools`}),` entry that is only a tool name, such as `,_jsx(_components.code,{children:`\"Read\"`}),`: the warning lists each such entry after `,_jsx(_components.code,{children:`canUseTool will not be invoked for:`}),`. Calls to a listed tool are approved before `,_jsx(_components.code,{children:`canUseTool`}),` is consulted, apart from the `,_jsx(_components.a,{href:`#calls-an-allow-rule-never-approves`,children:`calls an allow rule never approves`}),`. To have your callback run for a listed tool’s calls that need approval, remove that tool’s entry from `,_jsx(_components.code,{children:`allowedTools`})]}),`\n`]}),`\n`,_jsxs(_components.p,{children:[`Entries with a specifier such as `,_jsx(_components.code,{children:`Bash(ls *)`}),` and the `,_jsx(_components.code,{children:`acceptEdits`}),` mode don’t trigger it, and allow rules coming from settings files aren’t visible to the check.`]}),`\n`,_jsxs(_components.p,{children:[`The warning doesn’t block any call or change any option. If your callback already receives every call you want to check, leave your configuration as it is. To log the warning, listen with `,_jsx(_components.code,{children:`process.on('warning', ...)`}),` and match the `,_jsx(_components.code,{children:`CLAUDE_SDK_CAN_USE_TOOL_SHADOWED`}),` code.`]}),`\n`,_jsxs(_components.p,{children:[`This page focuses on `,_jsx(_components.strong,{children:`allow and deny rules`}),` and `,_jsx(_components.strong,{children:`permission modes`}),`. For the other steps:`]}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[_jsx(_components.strong,{children:`Hooks:`}),` run custom code to allow, deny, or modify tool requests. See `,_jsx(_components.a,{href:`/en/agent-sdk/hooks`,children:`Control execution with hooks`}),`.`]}),`\n`,_jsxs(_components.li,{children:[_jsx(_components.strong,{children:`canUseTool callback:`}),` prompt users for approval at runtime, when no earlier step resolves the call. See `,_jsx(_components.a,{href:`/en/agent-sdk/user-input`,children:`Handle approvals and user input`}),`.`]}),`\n`]}),`\n`,_jsx(Heading,{level:`2`,id:`allow-and-deny-rules`,children:`Allow and deny rules`}),`\n`,_jsxs(_components.p,{children:[_jsx(_components.code,{children:`allowed_tools`}),` and `,_jsx(_components.code,{children:`disallowed_tools`}),` (TypeScript: `,_jsx(_components.code,{children:`allowedTools`}),` / `,_jsx(_components.code,{children:`disallowedTools`}),`) add entries to the allow and deny rule lists in the evaluation flow above. If you name one of the `,_jsx(_components.a,{href:`/en/agent-sdk/todo-tracking#model-availability`,children:`task-tracking tools`}),` in `,_jsx(_components.code,{children:`allowed_tools`}),`, Claude Code also opts the session in. Any other tool not listed in `,_jsx(_components.code,{children:`allowed_tools`}),` is still available to Claude, and a call to it that needs approval falls through to the permission mode. Deny rules behave differently depending on whether they name a tool or scope a pattern within one.`]}),`\n`,_jsxs(Table,{children:[_jsx(_components.thead,{children:_jsxs(_components.tr,{children:[_jsx(_components.th,{style:{textAlign:`left`},children:`Option`}),_jsx(_components.th,{style:{textAlign:`left`},children:`Effect`})]})}),_jsxs(_components.tbody,{children:[_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`allowed_tools=[\"Read\", \"Grep\"]`})}),_jsxs(_components.td,{style:{textAlign:`left`},children:[_jsx(_components.code,{children:`Read`}),` and `,_jsx(_components.code,{children:`Grep`}),` are auto-approved, apart from `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`reads from network paths`}),`. Other tools not listed here still exist, and calls to them that need approval fall through to the permission mode and `,_jsx(_components.code,{children:`canUseTool`}),`.`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`disallowed_tools=[\"Bash\"]`})}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`The `,_jsx(_components.code,{children:`Bash`}),` tool definition is removed from the request. Claude does not see the tool and cannot attempt it.`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`disallowed_tools=[\"Bash(rm *)\"]`})}),_jsxs(_components.td,{style:{textAlign:`left`},children:[_jsx(_components.code,{children:`Bash`}),` stays available. Calls matching `,_jsx(_components.code,{children:`rm *`}),` `,_jsx(_components.a,{href:`/en/permissions#bash-rule-limits`,children:`as written`}),` are denied in every permission mode, including `,_jsx(_components.code,{children:`bypassPermissions`}),`. Other `,_jsx(_components.code,{children:`Bash`}),` calls, including `,_jsx(_components.code,{children:`/bin/rm`}),`, fall through to the permission mode.`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`disallowed_tools=[\"*\"]`})}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`Every tool definition is removed from the request. Tool-name globs are supported in deny rules: `,_jsx(_components.code,{children:`\"*\"`}),` matches every tool and `,_jsx(_components.code,{children:`\"mcp__*\"`}),` matches every MCP tool across all servers.`]})]})]})]}),`\n`,_jsxs(_components.p,{children:[`Allow rules accept tool-name globs only after a literal `,_jsx(_components.code,{children:`mcp__\u003cserver>__`}),` prefix. The server segment must be glob-free so the rule names a specific server you configured: `,_jsx(_components.code,{children:`mcp__puppeteer__*`}),` matches every tool from the `,_jsx(_components.code,{children:`puppeteer`}),` server, and `,_jsx(_components.code,{children:`mcp__github__get_*`}),` matches its `,_jsx(_components.code,{children:`get_`}),` tools. An unanchored entry like `,_jsx(_components.code,{children:`allowed_tools=[\"*\"]`}),` or `,_jsx(_components.code,{children:`allowed_tools=[\"mcp__*\"]`}),` is ignored and doesn’t auto-approve anything.`]}),`\n`,_jsxs(_components.p,{children:[`Scoped rules for `,_jsx(_components.code,{children:`Read`}),` and `,_jsx(_components.code,{children:`Edit`}),` take a path pattern. `,_jsx(_components.code,{children:`Edit(path)`}),` rules govern all built-in tools that write files, including `,_jsx(_components.code,{children:`Write`}),` and `,_jsx(_components.code,{children:`NotebookEdit`}),`; a `,_jsx(_components.code,{children:`Write(path)`}),` rule is never matched by the file permission checks.`]}),`\n`,_jsxs(_components.p,{children:[`Use `,_jsx(_components.code,{children:`//path`}),` for an absolute filesystem path: a deny rule of `,_jsx(_components.code,{children:`Edit(//secrets/**)`}),` blocks writes anywhere under `,_jsx(_components.code,{children:`/secrets`}),` on disk. With a single leading slash, `,_jsx(_components.code,{children:`Edit(/secrets/**)`}),` anchors at the rule’s source instead. For rules passed through `,_jsx(_components.code,{children:`allowed_tools`}),` or `,_jsx(_components.code,{children:`disallowed_tools`}),`, that means the session’s working directory, so the rule doesn’t block `,_jsx(_components.code,{children:`/secrets`}),` on disk. See `,_jsx(_components.a,{href:`/en/permissions#read-and-edit`,children:`Read and Edit rules`}),` for the four anchor forms and how rules from settings files resolve.`]}),`\n`,_jsx(`span`,{id:`calls-an-allow-rule-never-approves`}),`\n`,_jsxs(Warning,{children:[_jsxs(_components.p,{children:[_jsxs(_components.strong,{children:[`Auto-approved tools never reach `,_jsx(_components.code,{children:`canUseTool`}),`.`]}),` A tool call approved at any earlier step, by `,_jsx(_components.code,{children:`acceptEdits`}),` or `,_jsx(_components.code,{children:`bypassPermissions`}),`, or by an allow rule, skips your `,_jsx(_components.code,{children:`canUseTool`}),` callback, so permission checks you put there are silently bypassed for that tool.`]}),_jsxs(_components.p,{children:[`If calls to a tool in `,_jsx(_components.code,{children:`allowed_tools`}),` still reach your `,_jsx(_components.code,{children:`canUseTool`}),` callback, or are denied in `,_jsx(_components.code,{children:`dontAsk`}),` mode, check whether they’re `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`reads from network paths`}),` or among the following calls. No allow rule approves these calls. In `,_jsx(_components.code,{children:`dontAsk`}),` mode, which never prompts, Claude Code denies them without calling `,_jsx(_components.code,{children:`canUseTool`}),`, and in the other permission modes you handle them as each item says:`]}),_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[`\n`,_jsxs(_components.p,{children:[_jsx(_components.code,{children:`AskUserQuestion`}),`, MCP tools marked `,_jsx(_components.a,{href:`/en/mcp#require-approval-for-a-specific-tool`,children:_jsx(_components.code,{children:`_meta[\"anthropic/requiresUserInteraction\"]`})}),`, and connector tools `,_jsxs(_components.a,{href:`/en/mcp#organization-controls-on-connector-tools`,children:[`your organization set to `,_jsx(_components.code,{children:`ask`})]}),`: answer them in the callback. `,_jsx(_components.a,{href:`/en/agent-sdk/user-input#handle-clarifying-questions`,children:`Handle clarifying questions`}),` shows how to answer `,_jsx(_components.code,{children:`AskUserQuestion`}),`, and a connector call arrives with the reason `,_jsx(_components.code,{children:`Your organization requires approval for this tool`})]}),`\n`]}),`\n`,_jsxs(_components.li,{children:[`\n`,_jsxs(_components.p,{children:[`Custom tools your application marks `,_jsx(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:_jsx(_components.code,{children:`always_ask`})}),`: decide the call in the callback. To stop these calls arriving, `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#mcpsdkserverconfigwithinstance`,children:`change the policy mid-session`}),`. In `,_jsx(_components.code,{children:`auto`}),`, `,_jsx(_components.code,{children:`plan`}),`, and `,_jsx(_components.code,{children:`bypassPermissions`}),` mode the call can instead be approved before the callback, in the cases listed under `,_jsxs(_components.a,{href:`/en/agent-sdk/typescript#permission-modes-that-can-approve-an-always_ask-call`,children:[`Permission modes that can approve an `,_jsx(_components.code,{children:`always_ask`}),` call`]})]}),`\n`]}),`\n`,_jsxs(_components.li,{children:[`\n`,_jsxs(_components.p,{children:[`Recognized `,_jsx(_components.code,{children:`rm`}),` and `,_jsx(_components.code,{children:`rmdir`}),` `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical-path removals`}),`: in `,_jsx(_components.code,{children:`default`}),`, `,_jsx(_components.code,{children:`acceptEdits`}),`, and `,_jsx(_components.code,{children:`bypassPermissions`}),` mode, allow or deny the removal in the callback, where `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#canusetool`,children:_jsx(_components.code,{children:`decisionReason`})}),` starts with `,_jsx(_components.code,{children:`Dangerous rm`}),`. For `,_jsx(_components.code,{children:`auto`}),` and `,_jsx(_components.code,{children:`plan`}),` mode, see `,_jsx(_components.a,{href:`/en/permission-modes#critical-path-removals-in-each-permission-mode`,children:`Critical-path removals in each permission mode`}),`. The check that recognizes these removals `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`can miss some commands`})]}),`\n`]}),`\n`,_jsxs(_components.li,{children:[`\n`,_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Bare name`}),`: an entry like `,_jsx(_components.code,{children:`Read`}),` or `,_jsx(_components.code,{children:`mcp__github__get_issue`}),` auto-approves every call to that tool apart from the `,_jsx(_components.a,{href:`/en/permission-modes#actions-no-mode-auto-approves`,children:`actions no mode auto-approves`}),` and `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`reads from network paths`}),`.`]}),`\n`]}),`\n`,_jsxs(_components.li,{children:[`\n`,_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Scoped rule`}),`: an entry like `,_jsx(_components.code,{children:`Bash(npm test *)`}),` auto-approves only matching calls, and other `,_jsx(_components.code,{children:`Bash`}),` calls that need approval still fall through to the callback.`]}),`\n`]}),`\n`]}),_jsxs(_components.p,{children:[`For checks that must run on every tool call, use a `,_jsxs(_components.a,{href:`/en/agent-sdk/hooks`,children:[_jsx(_components.code,{children:`PreToolUse`}),` hook`]}),`: hooks run before every other step, and a hook deny applies even in `,_jsx(_components.code,{children:`bypassPermissions`}),` mode.`]})]}),`\n`,_jsxs(_components.p,{children:[`For a locked-down agent, pair `,_jsx(_components.code,{children:`allowedTools`}),` with `,_jsx(_components.code,{children:`permissionMode: \"dontAsk\"`}),`:`]}),`\n`,_jsx(CodeBlock,{filename:``,numberOfLines:`4`,language:`typescript`,children:_jsx(_components.pre,{className:`shiki shiki-themes github-light-default dark-plus`,style:{backgroundColor:`#ffffff`,\"--shiki-dark-bg\":`#0B0C0E`,color:`#1f2328`,\"--shiki-dark\":`#D4D4D4`},language:`typescript`,children:_jsxs(_components.code,{language:`typescript`,numberOfLines:`4`,children:[_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`const`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#4FC1FF`},children:` options`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:` =`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`  allowedTools:`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` [`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"Read\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`, `}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"Glob\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`, `}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"Grep\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`],`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`  permissionMode:`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"dontAsk\"`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`};`})}),`\n`]})})}),`\n`,_jsxs(_components.p,{children:[`The listed `,_jsx(_components.code,{children:`Read`}),`, `,_jsx(_components.code,{children:`Glob`}),`, and `,_jsx(_components.code,{children:`Grep`}),` calls are approved, apart from the `,_jsx(_components.a,{href:`/en/permission-modes#actions-no-mode-auto-approves`,children:`actions no mode auto-approves`}),` and `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`reads from network paths`}),`. Every other call that would prompt is denied instead, though a `,_jsx(_components.a,{href:`/en/plugins/mods/overview`,children:`mod`}),` you installed can still approve `,_jsx(_components.a,{href:`/en/permissions#precedence-among-rules-hooks-and-mods`,children:`some of those calls`}),`.`]}),`\n`,_jsxs(_components.p,{children:[`Calls that need no approval in `,_jsx(_components.code,{children:`default`}),` mode run whether or not you list them. These include `,_jsx(_components.a,{href:`/en/permissions#read-only-commands`,children:`read-only Bash commands`}),`, tools like `,_jsx(_components.code,{children:`Agent`}),` that don’t ask before running, and file reads inside your working directories. To hide a built-in tool from Claude entirely rather than deny its calls, add its bare name to `,_jsx(_components.code,{children:`disallowedTools`}),`.`]}),`\n`,_jsx(Warning,{children:_jsxs(_components.p,{children:[_jsxs(_components.strong,{children:[_jsx(_components.code,{children:`allowed_tools`}),` does not constrain `,_jsx(_components.code,{children:`bypassPermissions`}),`.`]}),` `,_jsx(_components.code,{children:`allowed_tools`}),` pre-approves the tools you list. Other unlisted tools are not matched by any allow rule and fall through to the permission mode, where `,_jsx(_components.code,{children:`bypassPermissions`}),` approves them. Setting `,_jsx(_components.code,{children:`allowed_tools=[\"Read\"]`}),` alongside `,_jsx(_components.code,{children:`permission_mode=\"bypassPermissions\"`}),` still approves every tool, including `,_jsx(_components.code,{children:`Bash`}),`, `,_jsx(_components.code,{children:`Write`}),`, and `,_jsx(_components.code,{children:`Edit`}),`. If you need `,_jsx(_components.code,{children:`bypassPermissions`}),` but want specific tools blocked, use `,_jsx(_components.code,{children:`disallowed_tools`}),`.`]})}),`\n`,_jsxs(_components.p,{children:[`You can also configure allow, deny, and ask rules declaratively in `,_jsx(_components.code,{children:`.claude/settings.json`}),`. These rules are read when the `,_jsx(_components.code,{children:`project`}),` setting source is enabled, which it is for default `,_jsx(_components.code,{children:`query()`}),` options. If you set `,_jsx(_components.code,{children:`setting_sources`}),` (TypeScript: `,_jsx(_components.code,{children:`settingSources`}),`) explicitly, include `,_jsx(_components.code,{children:`\"project\"`}),` for them to apply. See `,_jsx(_components.a,{href:`/en/settings-reference#permission-settings`,children:`Permission settings`}),` for the rule syntax.`]}),`\n`,_jsx(Heading,{level:`2`,id:`permission-modes`,children:`Permission modes`}),`\n`,_jsxs(_components.p,{children:[`Permission modes provide global control over how Claude uses tools. You can set the permission mode when calling `,_jsx(_components.code,{children:`query()`}),` or change it dynamically during streaming sessions.`]}),`\n`,_jsxs(_components.p,{children:[`With Claude Code v2.1.302 or later, your app starts in `,_jsx(_components.code,{children:`default`}),` mode unless you set a permission mode or it gets one from `,_jsx(_components.a,{href:`/en/settings-reference#permissions-defaultmode`,children:_jsx(_components.code,{children:`permissions.defaultMode`})}),` in its settings files. In `,_jsx(_components.code,{children:`default`}),` mode, Claude Code denies any tool call needing approval unless you approve it through an allow rule, hook, `,_jsx(_components.code,{children:`canUseTool`}),` callback, or permission prompt tool. If tool calls are denied, see `,_jsxs(_components.a,{href:`/en/permission-modes#which-mode-a-non-interactive-run-starts-in`,children:[`Tool calls denied in `,_jsx(_components.code,{children:`claude -p`}),` and Agent SDK runs`]}),`.`]}),`\n`,_jsx(Heading,{level:`3`,id:`available-modes`,children:`Available modes`}),`\n`,_jsx(_components.p,{children:`The SDK supports these permission modes:`}),`\n`,_jsxs(Table,{children:[_jsx(_components.thead,{children:_jsxs(_components.tr,{children:[_jsx(_components.th,{style:{textAlign:`left`},children:`Mode`}),_jsx(_components.th,{style:{textAlign:`left`},children:`Description`}),_jsx(_components.th,{style:{textAlign:`left`},children:`Tool behavior`})]})}),_jsxs(_components.tbody,{children:[_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`default`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Standard permission behavior`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`No mode-based auto-approvals; calls that need approval and match no allow rule trigger your `,_jsx(_components.code,{children:`canUseTool`}),` callback`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`dontAsk`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Deny instead of prompting`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`Any call that would otherwise prompt is denied without calling `,_jsx(_components.code,{children:`canUseTool`}),`, though a `,_jsx(_components.a,{href:`/en/plugins/mods/overview`,children:`mod`}),` you installed can still approve `,_jsx(_components.a,{href:`/en/permissions#precedence-among-rules-hooks-and-mods`,children:`some of those calls`}),`. Calls approved by `,_jsx(_components.code,{children:`allowed_tools`}),` or `,_jsx(_components.code,{children:`settings.json`}),` allow rules run, and so do calls that need no approval in `,_jsx(_components.code,{children:`default`}),` mode. Some calls, such as `,_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`reads from network paths`}),`, are denied even when `,_jsx(_components.code,{children:`allowed_tools`}),` or an allow rule matches them. For the list, see `,_jsx(_components.a,{href:`#don%E2%80%99t-ask-mode-dontask`,children:`Don’t ask mode`})]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`acceptEdits`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Auto-accept file edits`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`File edits and `,_jsx(_components.a,{href:`#accept-edits-mode-acceptedits`,children:`filesystem operations`}),` (`,_jsx(_components.code,{children:`mkdir`}),`, `,_jsx(_components.code,{children:`rm`}),`, `,_jsx(_components.code,{children:`mv`}),`, etc.) are automatically approved`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`bypassPermissions`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Bypass permission checks`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`Tools run without permission prompts, except for the `,_jsx(_components.a,{href:`/en/permission-modes#actions-no-mode-auto-approves`,children:`actions no mode auto-approves`}),` and, outside a `,_jsx(_components.a,{href:`/en/claude-code-on-the-web`,children:`cloud session`}),`, custom tools your application `,_jsxs(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:[`marks `,_jsx(_components.code,{children:`always_ask`})]}),`. Use with caution`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`plan`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Planning mode`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`Claude explores and plans without editing your source files; file edits are never auto-approved and prompt through your `,_jsx(_components.code,{children:`canUseTool`}),` callback`]})]}),_jsxs(_components.tr,{children:[_jsx(_components.td,{style:{textAlign:`left`},children:_jsx(_components.code,{children:`auto`})}),_jsx(_components.td,{style:{textAlign:`left`},children:`Model-classified approvals`}),_jsxs(_components.td,{style:{textAlign:`left`},children:[`A model classifier reviews actions such as shell commands and network requests, allowing or blocking each one it reviews. See `,_jsx(_components.a,{href:`/en/permission-modes#eliminate-prompts-with-auto-mode`,children:`Auto mode`}),` for availability and the decision order`]})]})]})]}),`\n`,_jsxs(Warning,{children:[_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Subagent inheritance:`}),` If your main session is in `,_jsx(_components.a,{href:`/en/permission-modes#analyze-before-you-edit-with-plan-mode`,children:`plan mode`}),`, a subagent whose `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#agentdefinition`,children:_jsx(_components.code,{children:`AgentDefinition`})}),` sets `,_jsx(_components.code,{children:`permissionMode: \"acceptEdits\"`}),` still runs in plan mode. That subagent’s `,_jsx(_components.code,{children:`Edit`}),` and `,_jsx(_components.code,{children:`Write`}),` calls on your source files still go to your `,_jsx(_components.code,{children:`canUseTool`}),` callback. Plan mode holds for the subagents you define too, so that handing work to one doesn’t get around reviewing the plan first.`]}),_jsxs(_components.p,{children:[`The subagent inherits `,_jsx(_components.code,{children:`plan`}),`, `,_jsx(_components.code,{children:`acceptEdits`}),`, `,_jsx(_components.code,{children:`auto`}),`, or `,_jsx(_components.code,{children:`bypassPermissions`}),` from the main session, and under a `,_jsx(_components.code,{children:`default`}),`- or `,_jsx(_components.code,{children:`dontAsk`}),`-mode main session it runs in the mode you set. Even then, Claude Code never applies a `,_jsx(_components.code,{children:`\"bypassPermissions\"`}),` value, and applies an `,_jsx(_components.code,{children:`\"auto\"`}),` value only when `,_jsx(_components.a,{href:`/en/permission-modes#eliminate-prompts-with-auto-mode`,children:`auto mode is available`}),` to that subagent. The `,_jsx(_components.code,{children:`bypassPermissions`}),` exception requires Claude Code v2.1.267 or later.`]}),_jsxs(_components.p,{children:[`Subagents may have different system prompts and less constrained behavior than your main agent, so inheriting `,_jsx(_components.code,{children:`bypassPermissions`}),` grants them full, autonomous system access. The `,_jsx(_components.a,{href:`/en/permission-modes#actions-no-mode-auto-approves`,children:`actions no mode auto-approves`}),` still apply.`]})]}),`\n`,_jsx(Heading,{level:`3`,id:`set-permission-mode`,children:`Set permission mode`}),`\n`,_jsx(_components.p,{children:`You can set the permission mode once when starting a query, or change it dynamically while the session is active.`}),`\n`,_jsxs(Tabs,{children:[_jsxs(Tab,{title:`At query time`,id:`at-query-time`,children:[_jsxs(_components.p,{children:[`Pass `,_jsx(_components.code,{children:`permission_mode`}),` (Python) or `,_jsx(_components.code,{children:`permissionMode`}),` (TypeScript) when creating a query.`]}),_jsxs(CodeGroup,{children:[_jsx(CodeBlock,{filename:`Python`,numberOfLines:`16`,language:`python`,children:_jsx(_components.pre,{className:`shiki shiki-themes github-light-default dark-plus`,style:{backgroundColor:`#ffffff`,\"--shiki-dark-bg\":`#0B0C0E`,color:`#1f2328`,\"--shiki-dark\":`#D4D4D4`},language:`python`,children:_jsxs(_components.code,{language:`python`,numberOfLines:`16`,children:[_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` asyncio`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`from`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` claude_agent_sdk `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` query, ClaudeAgentOptions`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` def`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`():`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`    async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:` for`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` message `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`in`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` query(`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#953800`,\"--shiki-dark\":`#9CDCFE`},children:`        prompt`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:`=`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"Help me refactor this code\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`,`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#953800`,\"--shiki-dark\":`#9CDCFE`},children:`        options`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:`=`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`ClaudeAgentOptions(`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#953800`,\"--shiki-dark\":`#9CDCFE`},children:`            permission_mode`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:`=`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"default\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`,  `}),_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`# Set the mode here`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`        ),`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    ):`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`        if`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#DCDCAA`},children:` hasattr`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(message, `}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"result\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`):`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#DCDCAA`},children:`            print`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(message.result)`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`asyncio.run(main())`})}),`\n`]})})}),_jsx(CodeBlock,{filename:`TypeScript`,numberOfLines:`16`,language:`typescript`,children:_jsx(_components.pre,{className:`shiki shiki-themes github-light-default dark-plus`,style:{backgroundColor:`#ffffff`,\"--shiki-dark-bg\":`#0B0C0E`,color:`#1f2328`,\"--shiki-dark\":`#D4D4D4`},language:`typescript`,children:_jsxs(_components.code,{language:`typescript`,numberOfLines:`16`,children:[_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` { `}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`query`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` } `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`from`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"@anthropic-ai/claude-agent-sdk\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`;`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` function`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`() {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`  for`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:` await`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` (`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`const`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#4FC1FF`},children:` message`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` of`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` query`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`({`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`    prompt:`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"Help me refactor this code\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`,`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`    options:`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`      permissionMode:`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"default\"`}),_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:` // Set the mode here`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`  })) {`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`    if`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` (`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"result\"`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` in`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:` message`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`) {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`      console`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`.`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:`log`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`message`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`.`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`result`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`);`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`  }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`}`})}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:`main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`();`})]}),`\n`]})})})]})]}),_jsxs(Tab,{title:`During streaming`,id:`during-streaming`,children:[_jsxs(_components.p,{children:[`Call `,_jsx(_components.code,{children:`set_permission_mode()`}),` (Python) or `,_jsx(_components.code,{children:`setPermissionMode()`}),` (TypeScript) to change the mode mid-session. The new mode takes effect immediately for all subsequent tool requests. This lets you start restrictive and loosen permissions as trust builds, for example switching to `,_jsx(_components.code,{children:`acceptEdits`}),` after reviewing Claude’s initial approach.`]}),_jsxs(CodeGroup,{children:[_jsx(CodeBlock,{filename:`Python`,numberOfLines:`22`,language:`python`,children:_jsx(_components.pre,{className:`shiki shiki-themes github-light-default dark-plus`,style:{backgroundColor:`#ffffff`,\"--shiki-dark-bg\":`#0B0C0E`,color:`#1f2328`,\"--shiki-dark\":`#D4D4D4`},language:`python`,children:_jsxs(_components.code,{language:`python`,numberOfLines:`22`,children:[_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` asyncio`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`from`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` claude_agent_sdk `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` ClaudeSDKClient, ClaudeAgentOptions`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` def`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`():`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`    async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:` with`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` ClaudeSDKClient(`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#953800`,\"--shiki-dark\":`#9CDCFE`},children:`        options`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:`=`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`ClaudeAgentOptions(`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#953800`,\"--shiki-dark\":`#9CDCFE`},children:`            permission_mode`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:`=`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"default\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`,  `}),_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`# Start in default mode`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`        )`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    ) `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`as`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` client:`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`        await`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` client.query(`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"Help me refactor this code\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`)`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`        # Change mode dynamically mid-session`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`        await`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` client.set_permission_mode(`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"acceptEdits\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`)`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`        # Process messages with the new permission mode`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`        async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:` for`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` message `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`in`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` client.receive_response():`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`            if`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#DCDCAA`},children:` hasattr`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(message, `}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"result\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`):`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#DCDCAA`},children:`                print`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(message.result)`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`asyncio.run(main())`})}),`\n`]})})}),_jsx(CodeBlock,{filename:`TypeScript`,numberOfLines:`22`,language:`typescript`,children:_jsx(_components.pre,{className:`shiki shiki-themes github-light-default dark-plus`,style:{backgroundColor:`#ffffff`,\"--shiki-dark-bg\":`#0B0C0E`,color:`#1f2328`,\"--shiki-dark\":`#D4D4D4`},language:`typescript`,children:_jsxs(_components.code,{language:`typescript`,numberOfLines:`22`,children:[_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`import`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` { `}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`query`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` } `}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`from`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"@anthropic-ai/claude-agent-sdk\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`;`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`async`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` function`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`() {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`  const`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#4FC1FF`},children:` q`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#D4D4D4`},children:` =`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:` query`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`({`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`    prompt:`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"Help me refactor this code\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`,`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`    options:`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`      permissionMode:`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:` \"default\"`}),_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:` // Start in default mode`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`  });`})}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`  // Change mode dynamically mid-session`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`  await`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:` q`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`.`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:`setPermissionMode`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"acceptEdits\"`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`);`})]}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#6E7781`,\"--shiki-dark\":`#6A9955`},children:`  // Process messages with the new permission mode`})}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`  for`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:` await`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` (`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:`const`}),_jsx(_components.span,{style:{color:`#0550AE`,\"--shiki-dark\":`#4FC1FF`},children:` message`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` of`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:` q`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`) {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#C586C0`},children:`    if`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:` (`}),_jsx(_components.span,{style:{color:`#0A3069`,\"--shiki-dark\":`#CE9178`},children:`\"result\"`}),_jsx(_components.span,{style:{color:`#CF222E`,\"--shiki-dark\":`#569CD6`},children:` in`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:` message`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`) {`})]}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`      console`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`.`}),_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:`log`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`(`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`message`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`.`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#9CDCFE`},children:`result`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`);`})]}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`    }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`  }`})}),`\n`,_jsx(_components.span,{className:`line`,children:_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`}`})}),`\n`,_jsx(_components.span,{className:`line`}),`\n`,_jsxs(_components.span,{className:`line`,children:[_jsx(_components.span,{style:{color:`#8250DF`,\"--shiki-dark\":`#DCDCAA`},children:`main`}),_jsx(_components.span,{style:{color:`#1F2328`,\"--shiki-dark\":`#D4D4D4`},children:`();`})]}),`\n`]})})})]})]})]}),`\n`,_jsx(Heading,{level:`3`,id:`mode-details`,children:`Mode details`}),`\n`,_jsxs(Heading,{level:`4`,id:`accept-edits-mode-acceptedits`,children:[`Accept edits mode (`,_jsx(_components.code,{children:`acceptEdits`}),`)`]}),`\n`,_jsx(_components.p,{children:`Auto-approves file operations so Claude can edit code without prompting. Other tools (like Bash commands that aren’t filesystem operations) still require normal permissions.`}),`\n`,_jsx(_components.p,{children:_jsx(_components.strong,{children:`Auto-approved operations:`})}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsx(_components.li,{children:`File edits (Edit, Write tools)`}),`\n`,_jsxs(_components.li,{children:[`Filesystem commands: `,_jsx(_components.code,{children:`mkdir`}),`, `,_jsx(_components.code,{children:`touch`}),`, `,_jsx(_components.code,{children:`rm`}),`, `,_jsx(_components.code,{children:`rmdir`}),`, `,_jsx(_components.code,{children:`mv`}),`, `,_jsx(_components.code,{children:`cp`}),`, `,_jsx(_components.code,{children:`sed`})]}),`\n`]}),`\n`,_jsxs(_components.p,{children:[`Both apply only to paths inside the working directory or `,_jsx(_components.code,{children:`additionalDirectories`}),`. In `,_jsx(_components.code,{children:`acceptEdits`}),` mode, Claude Code doesn’t auto-approve the request when Claude:`]}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsx(_components.li,{children:`Works on a path outside that scope`}),`\n`,_jsx(_components.li,{children:`Writes to a protected path`}),`\n`,_jsxs(_components.li,{children:[`Removes a path that Claude Code recognizes as a `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical path`}),` with `,_jsx(_components.code,{children:`rm`}),` or `,_jsx(_components.code,{children:`rmdir`})]}),`\n`,_jsxs(_components.li,{children:[`Runs `,_jsx(_components.a,{href:`/en/permission-modes#auto-approve-file-edits-with-acceptedits-mode`,children:_jsx(_components.code,{children:`touch`})}),` with, for example, an option, a glob, or a `,_jsx(_components.code,{children:`timeout 5`}),` or `,_jsx(_components.code,{children:`LANG=C`}),` prefix`]}),`\n`]}),`\n`,_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Use when:`}),` you trust Claude’s edits and want faster iteration, such as during prototyping or when working in an isolated directory.`]}),`\n`,_jsxs(Heading,{level:`4`,id:`don’t-ask-mode-dontask`,children:[`Don’t ask mode (`,_jsx(_components.code,{children:`dontAsk`}),`)`]}),`\n`,_jsxs(_components.p,{children:[`Converts any permission prompt into a denial, without calling `,_jsx(_components.code,{children:`canUseTool`}),`, though a `,_jsx(_components.a,{href:`/en/plugins/mods/overview`,children:`mod`}),` you installed can still approve `,_jsx(_components.a,{href:`/en/permissions#precedence-among-rules-hooks-and-mods`,children:`some of those calls`}),`. Tools pre-approved by `,_jsx(_components.code,{children:`allowed_tools`}),`, `,_jsx(_components.code,{children:`settings.json`}),` allow rules, or a hook run as normal. Calls that need no approval in `,_jsx(_components.code,{children:`default`}),` mode also run as normal, such as file reads inside your working directories and calls to `,_jsx(_components.code,{children:`Agent`}),`.`]}),`\n`,_jsx(_components.p,{children:`These calls are denied even when an allow rule matches:`}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[`Connector tools `,_jsxs(_components.a,{href:`/en/mcp#organization-controls-on-connector-tools`,children:[`your organization set to `,_jsx(_components.code,{children:`ask`})]})]}),`\n`,_jsxs(_components.li,{children:[`Tools that require user interaction, such as `,_jsx(_components.code,{children:`AskUserQuestion`}),` and MCP tools whose server sets `,_jsx(_components.a,{href:`/en/mcp#require-approval-for-a-specific-tool`,children:_jsx(_components.code,{children:`_meta[\"anthropic/requiresUserInteraction\"]`})})]}),`\n`,_jsxs(_components.li,{children:[`Custom tools whose `,_jsx(_components.code,{children:`permission_policy`}),` your application sets to `,_jsx(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:_jsx(_components.code,{children:`always_ask`})})]}),`\n`,_jsx(_components.li,{children:_jsx(_components.a,{href:`/en/permissions#network-paths`,children:`Reads from network paths`})}),`\n`,_jsxs(_components.li,{children:[`Recognized `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical-path removals`})]}),`\n`]}),`\n`,_jsxs(_components.p,{children:[`If your `,_jsx(_components.code,{children:`PreToolUse`}),` hook returns `,_jsx(_components.code,{children:`allow`}),` for a recognized critical-path removal, a read from a network path, or a call to a tool marked `,_jsx(_components.code,{children:`always_ask`}),`, the call is still denied. The check that recognizes these removals `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`can miss some commands`}),`.`]}),`\n`,_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Use when:`}),` you want a fixed, explicit tool surface for a headless agent and prefer a hard deny over silent reliance on `,_jsx(_components.code,{children:`canUseTool`}),` being absent.`]}),`\n`,_jsxs(Heading,{level:`4`,id:`bypass-permissions-mode-bypasspermissions`,children:[`Bypass permissions mode (`,_jsx(_components.code,{children:`bypassPermissions`}),`)`]}),`\n`,_jsxs(_components.p,{children:[`Auto-approves tool uses without prompting, except the `,_jsx(_components.a,{href:`/en/permission-modes#actions-no-mode-auto-approves`,children:`actions no mode auto-approves`}),`. Hooks still execute and can block operations if needed. On Linux and macOS, Claude Code refuses to start in this mode as root or under `,_jsx(_components.code,{children:`sudo`}),` outside a `,_jsx(_components.a,{href:`/en/permission-modes#skip-all-checks-with-bypasspermissions-mode`,children:`recognized sandbox`}),`, and the query fails before the first turn.`]}),`\n`,_jsxs(Warning,{children:[_jsx(_components.p,{children:`Use with extreme caution. Claude has full system access in this mode. Only use in controlled environments where you trust all possible operations.`}),_jsxs(_components.p,{children:[_jsx(_components.code,{children:`allowed_tools`}),` does not constrain this mode. Every tool is approved, not just the ones you listed. These controls still apply:`]}),_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[`Deny rules, explicit `,_jsx(_components.code,{children:`ask`}),` rules, and hooks are evaluated before the mode check and can still block a tool.`]}),`\n`,_jsxs(_components.li,{children:[`Connector tools `,_jsxs(_components.a,{href:`/en/mcp#organization-controls-on-connector-tools`,children:[`your organization set to `,_jsx(_components.code,{children:`ask`})]}),`, tools that require user interaction, and recognized `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`critical-path removals`}),` still fall through to your `,_jsx(_components.code,{children:`canUseTool`}),` callback. The check that recognizes these removals `,_jsx(_components.a,{href:`/en/permission-modes#critical-paths`,children:`can miss some commands`}),`, and you can `,_jsx(_components.a,{href:`/en/permission-modes#turn-off-the-critical-path-removal-prompt-in-bypasspermissions-mode`,children:`turn off the critical-path removal prompt`}),`. Outside a `,_jsx(_components.a,{href:`/en/claude-code-on-the-web`,children:`cloud session`}),`, calls to custom tools your application `,_jsxs(_components.a,{href:`/en/agent-sdk/custom-tools#require-approval-for-specific-tools`,children:[`marks `,_jsx(_components.code,{children:`always_ask`})]}),` fall through to the callback too.`]}),`\n`,_jsxs(_components.li,{children:[`The `,_jsx(_components.a,{href:`/en/permission-modes#skip-all-checks-with-bypasspermissions-mode`,children:`cross-session messaging safeguards`}),` still apply.`]}),`\n`]})]}),`\n`,_jsxs(Heading,{level:`4`,id:`plan-mode-plan`,children:[`Plan mode (`,_jsx(_components.code,{children:`plan`}),`)`]}),`\n`,_jsxs(_components.p,{children:[`Claude explores the codebase and produces a plan without editing your source files. File edits are never auto-approved in plan mode, even when an allow rule matches or a `,_jsx(_components.code,{children:`PreToolUse`}),` hook returns `,_jsx(_components.code,{children:`allow`}),`. They prompt through your `,_jsx(_components.code,{children:`canUseTool`}),` callback instead.`]}),`\n`,_jsxs(_components.p,{children:[`While auto mode is available to the session, commands Claude runs during planning don’t reach your callback by default, because the classifier model that `,_jsx(_components.a,{href:`/en/permission-modes#eliminate-prompts-with-auto-mode`,children:`auto mode`}),` uses `,_jsx(_components.a,{href:`/en/permission-modes#analyze-before-you-edit-with-plan-mode`,children:`reviews them instead`}),`. With that review on, the classifier can also approve read-only calls that would otherwise reach your callback, such as a `,_jsx(_components.code,{children:`WebFetch`}),` call with no allow rule.`]}),`\n`,_jsx(Note,{children:_jsxs(_components.p,{children:[`In the TypeScript SDK, if you set `,_jsx(_components.code,{children:`allowDangerouslySkipPermissions: true`}),` alongside `,_jsx(_components.code,{children:`permissionMode: 'plan'`}),`, file edits still reach your `,_jsx(_components.code,{children:`canUseTool`}),` callback. To switch a session that starts in plan mode to `,_jsx(_components.code,{children:`bypassPermissions`}),` later with `,_jsx(_components.code,{children:`setPermissionMode()`}),`, you need `,_jsx(_components.code,{children:`allowDangerouslySkipPermissions`}),` set from the start.`]})}),`\n`,_jsxs(_components.p,{children:[`Claude may use `,_jsx(_components.code,{children:`AskUserQuestion`}),` to clarify requirements before finalizing the plan. See `,_jsx(_components.a,{href:`/en/agent-sdk/user-input#handle-clarifying-questions`,children:`Handle approvals and user input`}),` for handling these prompts.`]}),`\n`,_jsxs(_components.p,{children:[_jsx(_components.strong,{children:`Use when:`}),` you want Claude to propose changes without executing them, such as during code review or when you need to approve changes before they’re made.`]}),`\n`,_jsxs(Heading,{level:`4`,id:`auto-mode-auto`,children:[`Auto mode (`,_jsx(_components.code,{children:`auto`}),`)`]}),`\n`,_jsxs(_components.p,{children:[`A classifier model reviews actions such as shell commands and network requests before they run, and allows or blocks each one it reviews. For the models and providers auto mode requires and the order it evaluates actions in, see `,_jsx(_components.a,{href:`/en/permission-modes#eliminate-prompts-with-auto-mode`,children:`Eliminate permission prompts with auto mode`}),`.`]}),`\n`,_jsxs(_components.p,{children:[`If you switch a session that’s in auto mode to a model that auto mode doesn’t support, using `,_jsx(_components.a,{href:`/en/agent-sdk/python#claudesdkclient`,children:_jsx(_components.code,{children:`set_model()`})}),`, `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#query-object`,children:_jsx(_components.code,{children:`setModel()`})}),`, or `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#applyflagsettings`,children:_jsx(_components.code,{children:`applyFlagSettings()`})}),`, the session changes to `,_jsx(_components.code,{children:`default`}),` mode:`]}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[_jsx(_components.strong,{children:`What you see`}),`: a `,_jsx(_components.code,{children:`system`}),` message with subtype `,_jsx(_components.code,{children:`status`}),` and `,_jsx(_components.code,{children:`permissionMode`}),` set to `,_jsx(_components.code,{children:`\"default\"`}),`, which the TypeScript SDK types as `,_jsx(_components.a,{href:`/en/agent-sdk/typescript#sdkstatusmessage`,children:_jsx(_components.code,{children:`SDKStatusMessage`})}),`. From then on, calls that need approval and match no allow rule reach your `,_jsx(_components.code,{children:`canUseTool`}),` callback.`]}),`\n`,_jsxs(_components.li,{children:[_jsx(_components.strong,{children:`To return to auto mode`}),`: switch to a supported model, then call `,_jsx(_components.code,{children:`set_permission_mode(\"auto\")`}),` or `,_jsx(_components.code,{children:`setPermissionMode(\"auto\")`}),`. If you switch the model back without making that call, the session stays in `,_jsx(_components.code,{children:`default`}),` mode. While the unsupported model is active, the call fails with `,_jsx(_components.code,{children:`Cannot set permission mode to auto: auto mode unavailable for this model`}),`.`]}),`\n`]}),`\n`,_jsxs(_components.p,{children:[`The change to `,_jsx(_components.code,{children:`default`}),` mode after a `,_jsx(_components.code,{children:`set_model()`}),`, `,_jsx(_components.code,{children:`setModel()`}),`, or `,_jsx(_components.code,{children:`applyFlagSettings()`}),` call requires Claude Code v2.1.299 or later.`]}),`\n`,_jsx(Heading,{level:`2`,id:`related-resources`,children:`Related resources`}),`\n`,_jsx(_components.p,{children:`For the other steps in the permission evaluation flow:`}),`\n`,_jsxs(_components.ul,{children:[`\n`,_jsxs(_components.li,{children:[_jsx(_components.a,{href:`/en/agent-sdk/user-input`,children:`Handle approvals and user input`}),`: interactive approval prompts and clarifying questions`]}),`\n`,_jsxs(_components.li,{children:[_jsx(_components.a,{href:`/en/agent-sdk/hooks`,children:`Hooks guide`}),`: run custom code at key points in the agent lifecycle`]}),`\n`,_jsxs(_components.li,{children:[_jsx(_components.a,{href:`/en/settings-reference#permission-settings`,children:`Permission rules`}),`: declarative allow/deny rules in `,_jsx(_components.code,{children:`settings.json`})]}),`\n`]})]})}function MDXContent(props={}){const{wrapper:MDXLayout}={..._provideComponents(),...props.components};return MDXLayout?_jsx(MDXLayout,{...props,children:_jsx(_createMdxContent,{...props})}):_createMdxContent(props)}return{default:MDXContent};function _missingMdxReference(id,component){throw new Error(`Expected `+(component?`component`:`object`)+\" `\"+id+\"` to be defined: you likely forgot to import, pass, or provide it.\")}","frontmatter":{},"scope":{"config":{},"pageMetadata":{"title":"Configure permissions","description":"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.","href":"/en/agent-sdk/permissions"}}},"mdxSourceWithNoJs":null},"mdxExtracts":{"tableOfContents":[{"title":"How permissions are evaluated","slug":"how-permissions-are-evaluated","depth":2,"children":[]},{"title":"Allow and deny rules","slug":"allow-and-deny-rules","depth":2,"children":[]},{"title":"Permission modes","slug":"permission-modes","depth":2,"children":[{"title":"Available modes","slug":"available-modes","depth":3,"children":[]},{"title":"Set permission mode","slug":"set-permission-mode","depth":3,"children":[]},{"title":"Mode details","slug":"mode-details","depth":3,"children":[]},{"title":"Accept edits mode (acceptEdits)","slug":"accept-edits-mode-acceptedits","depth":4,"children":[]},{"title":"Don’t ask mode (dontAsk)","slug":"don’t-ask-mode-dontask","depth":4,"children":[]},{"title":"Bypass permissions mode (bypassPermissions)","slug":"bypass-permissions-mode-bypasspermissions","depth":4,"children":[]},{"title":"Plan mode (plan)","slug":"plan-mode-plan","depth":4,"children":[]},{"title":"Auto mode (auto)","slug":"auto-mode-auto","depth":4,"children":[]}]},{"title":"Related resources","slug":"related-resources","depth":2,"children":[]}],"codeExamples":{}},"jsLinks":["/docs/_mintlify/custom/claude-code/f164a83c5609d421/consent-loader.js","/docs/_mintlify/custom/claude-code/a14b5f5366e4b482/antalytics-loader.js","/docs/_mintlify/custom/claude-code/4cd6fefc4e377e79/toc-collapse.js","/docs/_mintlify/custom/claude-code/f6b3e97e7cbfc8d3/settings-anchor-redirect.js","/docs/_mintlify/custom/claude-code/45be325883f4820b/plugins-anchor-redirect.js","/docs/_mintlify/custom/claude-code/7c53cb088b8331b3/nav-tab-click.js"],"dynamicCss":".mint-hidden {\n    display: none\n}\n.dark\\:mint-block:is(.dark *) {\n    display: block\n}\n.dark\\:mint-hidden:is(.dark *) {\n    display: none\n}","subdomain":"claude-code","siteName":"Claude Code Docs","title":"Configure permissions - Claude Code Docs","navMaps":{"firstHrefInVersion":{},"firstHrefInLanguage":{"en":{"href":"/en/agent-sdk/permissions","matchLevel":0},"fr":{"href":"/fr/agent-sdk/permissions","matchLevel":1},"de":{"href":"/de/agent-sdk/permissions","matchLevel":1},"it":{"href":"/it/agent-sdk/permissions","matchLevel":1},"jp":{"href":"/ja/agent-sdk/permissions","matchLevel":1},"es":{"href":"/es/agent-sdk/permissions","matchLevel":1},"ko":{"href":"/ko/agent-sdk/permissions","matchLevel":1},"zh-CN":{"href":"/zh-CN/agent-sdk/permissions","matchLevel":1},"zh-TW":{"href":"/zh-TW/agent-sdk/permissions","matchLevel":1},"ru":{"href":"/ru/agent-sdk/permissions","matchLevel":1},"id":{"href":"/id/agent-sdk/permissions","matchLevel":1},"pt-BR":{"href":"/pt/agent-sdk/permissions","matchLevel":1}}},"lastModified":"2026-10-27T16:49:04.640Z","originalFileLocation":"en/agent-sdk/permissions.mdx","locale":"en"},"headHtml":"\u003cscript data-mint-head>(function(){var d=document.documentElement,p=null;if(!p){try{p=localStorage.getItem(\"isDarkMode\")}catch(e){}if(p==='true')p='dark';else if(p==='false')p='light';if(p!=='light'\u0026\u0026p!=='dark'\u0026\u0026p!=='system')p=\"system\"}var r=p==='system'?(matchMedia(\"(prefers-color-scheme: dark)\").matches?'dark':'light'):p;d.classList.remove(r==='dark'?'light':'dark');d.classList.add(r);d.setAttribute(\"data-theme-preference\",p)})();\u003c/script>\u003cmeta data-mint-head name=\"description\" content=\"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\">\u003cmeta data-mint-head name=\"application-name\" content=\"Claude Code Docs\">\u003cmeta data-mint-head name=\"generator\" content=\"Mintlify\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/android-chrome-192x192.png\" media=\"(prefers-color-scheme: light)\">\u003clink data-mint-head rel=\"apple-touch-icon\" type=\"image/png\" sizes=\"180x180\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/apple-touch-icon.png\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/favicon-16x16.png\" media=\"(prefers-color-scheme: light)\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/favicon-32x32.png\" media=\"(prefers-color-scheme: light)\">\u003clink data-mint-head rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/favicon.ico\" media=\"(prefers-color-scheme: light)\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon-dark/android-chrome-192x192.png\" media=\"(prefers-color-scheme: dark)\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon-dark/favicon-16x16.png\" media=\"(prefers-color-scheme: dark)\">\u003clink data-mint-head rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon-dark/favicon-32x32.png\" media=\"(prefers-color-scheme: dark)\">\u003clink data-mint-head rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon-dark/favicon.ico\" media=\"(prefers-color-scheme: dark)\">\u003cmeta data-mint-head property=\"og:title\" content=\"Configure permissions - Claude Code Docs\">\u003cmeta data-mint-head property=\"og:description\" content=\"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\">\u003cmeta data-mint-head property=\"og:site_name\" content=\"Claude Code Docs\">\u003cmeta data-mint-head property=\"og:url\" content=\"https://code.claude.com/docs/en/agent-sdk/permissions\">\u003cmeta data-mint-head property=\"og:type\" content=\"website\">\u003cmeta data-mint-head property=\"og:image\" content=\"https://claude-code.mintlify.app/_mintlify/api/og/v2?division=Control+and+observability\u0026amp;title=Configure+permissions\u0026amp;description=Control+how+your+agent+uses+tools+with+permission+modes%2C+hooks%2C+and+declarative+allow%2Fdeny+rules.\u0026amp;theme=8d9812df31da293aba4e8103\u0026amp;signature=8be3dd75f4fd07dd9776a4792143ade2baf45d939cc00f670c7068791dc89039\">\u003cmeta data-mint-head property=\"og:image:width\" content=\"1200\">\u003cmeta data-mint-head property=\"og:image:height\" content=\"630\">\u003cmeta data-mint-head name=\"twitter:card\" content=\"summary_large_image\">\u003cmeta data-mint-head name=\"twitter:title\" content=\"Configure permissions - Claude Code Docs\">\u003cmeta data-mint-head name=\"twitter:description\" content=\"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\">\u003cmeta data-mint-head name=\"twitter:image\" content=\"https://claude-code.mintlify.app/_mintlify/api/og/v2?division=Control+and+observability\u0026amp;title=Configure+permissions\u0026amp;description=Control+how+your+agent+uses+tools+with+permission+modes%2C+hooks%2C+and+declarative+allow%2Fdeny+rules.\u0026amp;theme=8d9812df31da293aba4e8103\u0026amp;signature=8be3dd75f4fd07dd9776a4792143ade2baf45d939cc00f670c7068791dc89039\">\u003cmeta data-mint-head name=\"twitter:image:width\" content=\"1200\">\u003cmeta data-mint-head name=\"twitter:image:height\" content=\"630\">\u003cmeta data-mint-head name=\"msapplication-config\" content=\"/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/browserconfig.xml\">\u003cmeta data-mint-head name=\"apple-mobile-web-app-title\" content=\"Claude Code Docs\">\u003cmeta data-mint-head name=\"msapplication-TileColor\" content=\"#0E0E0E\">\u003clink data-mint-head rel=\"canonical\" href=\"https://code.claude.com/docs/en/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" type=\"application/xml\" href=\"/docs/sitemap.xml\">\u003clink data-mint-head rel=\"alternate\" type=\"text/markdown\" href=\"/docs/en/agent-sdk/permissions.md\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"en\" href=\"https://code.claude.com/docs/en/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"fr\" href=\"https://code.claude.com/docs/fr/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"de\" href=\"https://code.claude.com/docs/de/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"it\" href=\"https://code.claude.com/docs/it/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"ja\" href=\"https://code.claude.com/docs/ja/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"es\" href=\"https://code.claude.com/docs/es/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"ko\" href=\"https://code.claude.com/docs/ko/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"zh-CN\" href=\"https://code.claude.com/docs/zh-CN/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"zh-TW\" href=\"https://code.claude.com/docs/zh-TW/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"ru\" href=\"https://code.claude.com/docs/ru/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"id\" href=\"https://code.claude.com/docs/id/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"pt-BR\" href=\"https://code.claude.com/docs/pt/agent-sdk/permissions\">\u003clink data-mint-head rel=\"alternate\" hreflang=\"x-default\" href=\"https://code.claude.com/docs/en/agent-sdk/permissions\">\u003cscript data-mint-head type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"Organization\",\"@id\":\"https://code.claude.com/#organization\",\"name\":\"Claude Code Docs\",\"url\":\"https://code.claude.com\",\"logo\":{\"@type\":\"ImageObject\",\"url\":\"https://mintcdn.com/claude-code/c5r9_6tjPMzFdDDT/logo/light.svg?fit=max\u0026auto=format\u0026n=c5r9_6tjPMzFdDDT\u0026q=85\u0026s=78fd01ff4f4340295a4f66e2ea54903c\"}},{\"@type\":\"WebSite\",\"@id\":\"https://code.claude.com/docs#website\",\"name\":\"Claude Code Docs\",\"url\":\"https://code.claude.com/docs\",\"publisher\":{\"@id\":\"https://code.claude.com/#organization\"}},{\"@type\":\"WebPage\",\"@id\":\"https://code.claude.com/docs/en/agent-sdk/permissions#webpage\",\"url\":\"https://code.claude.com/docs/en/agent-sdk/permissions\",\"name\":\"Configure permissions\",\"description\":\"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\",\"dateModified\":\"2026-10-27T16:49:04.640Z\",\"isPartOf\":{\"@id\":\"https://code.claude.com/docs#website\"},\"breadcrumb\":{\"@id\":\"https://code.claude.com/docs/en/agent-sdk/permissions#breadcrumb\"}},{\"@type\":\"BreadcrumbList\",\"@id\":\"https://code.claude.com/docs/en/agent-sdk/permissions#breadcrumb\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Claude Code Docs\",\"item\":\"https://code.claude.com/docs\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Configure permissions\",\"item\":\"https://code.claude.com/docs/en/agent-sdk/permissions\"}]},{\"@type\":[\"Article\",\"TechArticle\"],\"@id\":\"https://code.claude.com/docs/en/agent-sdk/permissions#article\",\"headline\":\"Configure permissions\",\"name\":\"Configure permissions\",\"description\":\"Control how your agent uses tools with permission modes, hooks, and declarative allow/deny rules.\",\"url\":\"https://code.claude.com/docs/en/agent-sdk/permissions\",\"mainEntityOfPage\":{\"@id\":\"https://code.claude.com/docs/en/agent-sdk/permissions#webpage\"},\"dateModified\":\"2026-10-27T16:49:04.640Z\",\"publisher\":{\"@id\":\"https://code.claude.com/#organization\"},\"isPartOf\":{\"@id\":\"https://code.claude.com/docs#website\"}}]}\u003c/script>","siteName":"Claude Code Docs","nav":{"global":null,"languages":[{"language":"en","tabs":[{"tab":"Getting started","menu":[{"item":"Overview","description":"What Claude Code is and how to install it","pages":[{"title":"Overview","href":"/en/overview"}]},{"item":"Quickstart","description":"Install, start a session, make your first change","pages":[{"title":"Quickstart","href":"/en/quickstart"}]},{"item":"Core concepts","description":"How it works, what loads, what it costs","pages":[{"title":"Core concepts","href":"/en/how-claude-code-works"}]},{"item":"Use Claude Code","description":"Memory, sessions, workflows, and prompts","pages":[{"title":"Use Claude Code","href":"/en/memory"}]},{"item":"Platforms and integrations","description":"Terminal, IDEs, desktop, web, and Slack","pages":[{"title":"Platforms and integrations","href":"/en/platforms"}]},{"item":"Code review and pull requests","description":"PR reviews, local review, security, and CI","pages":[{"title":"Code review and pull requests","href":"/en/code-review"}]}],"pages":[{"title":"Getting started","href":"/en/overview"}]},{"tab":"Build with Claude Code","menu":[{"item":"Agents and parallel work","description":"Subagents, agent view, teams, worktrees","pages":[{"title":"Agents and parallel work","href":"/en/agents"}]},{"item":"MCP","description":"Connect your tools and data","pages":[{"title":"MCP","href":"/en/mcp-quickstart"}]},{"item":"Skills","description":"Package workflows Claude can run","pages":[{"title":"Skills","href":"/en/skills"}]},{"item":"Artifacts","description":"Publish a page from a session","pages":[{"title":"Artifacts","href":"/en/artifacts"}]},{"item":"Automation","description":"Hooks, channels, schedules, non-interactive runs","pages":[{"title":"Automation","href":"/en/hooks-guide"}]},{"item":"Guides","description":"Work in large codebases","pages":[{"title":"Guides","href":"/en/large-codebases"}]},{"item":"Troubleshooting","description":"Install, configuration, and error fixes","pages":[{"title":"Troubleshooting","href":"/en/troubleshoot-install"}]}],"pages":[{"title":"Build with Claude Code","href":"/en/agents"}]},{"tab":"Plugins","menu":[{"item":"Plugins","description":"What plugins are and what they add","pages":[{"title":"Plugins","href":"/en/plugins/overview"}]},{"item":"Use plugins","description":"Find plugins and add them","pages":[{"title":"Use plugins","href":"/en/plugins/install"}]},{"item":"Create plugins","description":"Create, test, and publish a plugin","pages":[{"title":"Create plugins","href":"/en/plugins/create"}]},{"item":"Mods","description":"Change the Claude Code interface","pages":[{"title":"Mods","href":"/en/plugins/mods/overview"}]},{"item":"Run a marketplace","description":"Host and share plugins","pages":[{"title":"Run a marketplace","href":"/en/plugins/create-marketplace"}]},{"item":"Manage plugins for your organization","description":"Control plugins across a team","pages":[{"title":"Manage plugins for your organization","href":"/en/plugins/org"}]},{"item":"Troubleshooting","description":"Install and loading problems","pages":[{"title":"Troubleshooting","href":"/en/plugins/troubleshooting"}]},{"item":"Reference","description":"Manifests, CLI, and marketplace schema","pages":[{"title":"Reference","href":"/en/plugins/manifest-reference"}]}],"pages":[{"title":"Plugins","href":"/en/plugins/overview"}]},{"tab":"Administration","menu":[{"item":"Setup and access","description":"Install, sign-in, and managed settings","pages":[{"title":"Setup and access","href":"/en/admin-setup"}]},{"item":"Deployment","description":"Cloud providers, network, containers","pages":[{"title":"Deployment","href":"/en/third-party-integrations"}]},{"item":"Gateways","description":"Route requests through a gateway","pages":[{"title":"Gateways","href":"/en/gateways"}]},{"item":"Usage and costs","description":"Monitoring, spend, and analytics","pages":[{"title":"Usage and costs","href":"/en/monitoring-usage"}]},{"item":"Security and data","description":"Security, data use, and retention","pages":[{"title":"Security and data","href":"/en/security"}]},{"item":"Adoption","description":"Kits for rolling out to a team","pages":[{"title":"Adoption","href":"/en/communications-kit"}]}],"pages":[{"title":"Administration","href":"/en/admin-setup"}]},{"tab":"Configuration","menu":[{"item":"Settings","description":"Files, precedence, and keys","pages":[{"title":"Settings","href":"/en/settings"}]},{"item":"Permissions and sandboxing","description":"What Claude Code can do without asking","pages":[{"title":"Permissions and sandboxing","href":"/en/permissions"}]},{"item":"Environments","description":"Cloud and self-hosted environments","pages":[{"title":"Environments","href":"/en/cloud-environments"}]},{"item":"Model and responses","description":"Models, effort, and output styles","pages":[{"title":"Model and responses","href":"/en/model-config"}]},{"item":"Interface","description":"Terminal, keys, voice, and status line","pages":[{"title":"Interface","href":"/en/terminal-config"}]}],"pages":[{"title":"Configuration","href":"/en/settings"}]},{"tab":"Reference","menu":[{"item":"Reference","description":"Commands, flags, tools, hooks, and variables","pages":[{"title":"Reference","href":"/en/cli-reference"}]},{"item":"Glossary","description":"Terms used across the docs","pages":[{"title":"Glossary","href":"/en/glossary"}]}],"pages":[{"title":"Reference","href":"/en/cli-reference"}]},{"tab":"Agent SDK","menu":[{"item":"Agent SDK","description":"Overview, quickstart, and migration","groups":[{"group":"Agent SDK","pages":[{"title":"Agent SDK overview","sidebarTitle":"Overview","href":"/en/agent-sdk/overview"},{"title":"Quickstart","href":"/en/agent-sdk/quickstart"},{"title":"Migrate to Claude Agent SDK","sidebarTitle":"Migration Guide","href":"/en/agent-sdk/migration-guide"},{"title":"Troubleshoot the Agent SDK","sidebarTitle":"Troubleshooting","href":"/en/agent-sdk/troubleshooting"}]},{"group":"Build agents","pages":[{"title":"Configure your agent","href":"/en/agent-sdk/configuration"},{"title":"Examples","href":"/en/agent-sdk/examples"}]},{"group":"Core concepts","pages":[{"title":"How the agent loop works","href":"/en/agent-sdk/agent-loop"},{"title":"Use Claude Code features in the SDK","sidebarTitle":"Use Claude Code features","href":"/en/agent-sdk/claude-code-features"},{"title":"Work with sessions","href":"/en/agent-sdk/sessions"},{"title":"Persist sessions to external storage","href":"/en/agent-sdk/session-storage"}]},{"group":"Input and output","pages":[{"title":"Streaming Input","href":"/en/agent-sdk/streaming-vs-single-mode"},{"title":"Handle approvals and user input","href":"/en/agent-sdk/user-input"},{"title":"Stream responses in real-time","href":"/en/agent-sdk/streaming-output"},{"title":"Get structured output from agents","href":"/en/agent-sdk/structured-outputs"}]},{"group":"Extend with tools","pages":[{"title":"Give Claude custom tools","href":"/en/agent-sdk/custom-tools"},{"title":"Connect to external tools with MCP","href":"/en/agent-sdk/mcp"},{"title":"Scale to many tools with tool search","href":"/en/agent-sdk/tool-search"},{"title":"Subagents in the SDK","href":"/en/agent-sdk/subagents"}]},{"group":"Customize behavior","pages":[{"title":"Modifying system prompts","href":"/en/agent-sdk/modifying-system-prompts"},{"title":"Extend agents with skills","href":"/en/agent-sdk/skills"},{"title":"Plugins in the SDK","description":"Load custom plugins to extend Claude Code with skills, agents, hooks, and MCP servers through the Agent SDK","href":"/en/agent-sdk/plugins"}]},{"group":"Control and observability","pages":[{"title":"Configure permissions","href":"/en/agent-sdk/permissions"},{"title":"Intercept and control agent behavior with hooks","description":"Intercept and customize agent behavior at key execution points with hooks","href":"/en/agent-sdk/hooks"},{"title":"Rewind file changes with checkpointing","href":"/en/agent-sdk/file-checkpointing"},{"title":"Track cost and usage","href":"/en/agent-sdk/cost-tracking"},{"title":"Observability with OpenTelemetry","href":"/en/agent-sdk/observability"},{"title":"Track todos","href":"/en/agent-sdk/todo-tracking"}]},{"group":"Deployment","pages":[{"title":"Hosting the Agent SDK","href":"/en/agent-sdk/hosting"},{"title":"Securely deploying AI agents","href":"/en/agent-sdk/secure-deployment"}]},{"group":"SDK references","pages":[{"title":"Agent SDK reference - TypeScript","sidebarTitle":"TypeScript SDK","href":"/en/agent-sdk/typescript"},{"title":"TypeScript SDK V2 session API (removed)","sidebarTitle":"TypeScript V2 (removed)","href":"/en/agent-sdk/typescript-v2-preview"},{"title":"Agent SDK reference - Python","sidebarTitle":"Python SDK","href":"/en/agent-sdk/python"}]}]},{"item":"Build agents","description":"Configuration and examples","pages":[{"title":"Build agents","href":"/en/agent-sdk/configuration"}]},{"item":"Core concepts","description":"The agent loop, features, and sessions","pages":[{"title":"Core concepts","href":"/en/agent-sdk/agent-loop"}]},{"item":"Input and output","description":"Streaming, user input, structured output","pages":[{"title":"Input and output","href":"/en/agent-sdk/streaming-vs-single-mode"}]},{"item":"Extend with tools","description":"Custom tools, MCP, and subagents","pages":[{"title":"Extend with tools","href":"/en/agent-sdk/custom-tools"}]},{"item":"Customize behavior","description":"System prompts, skills, and plugins","pages":[{"title":"Customize behavior","href":"/en/agent-sdk/modifying-system-prompts"}]},{"item":"Control and observability","description":"Permissions, hooks, cost, and tracing","pages":[{"title":"Configure permissions","href":"/en/agent-sdk/permissions"}]},{"item":"Deployment","description":"Hosting and secure deployment","pages":[{"title":"Deployment","href":"/en/agent-sdk/hosting"}]},{"item":"SDK references","description":"TypeScript and Python","pages":[{"title":"SDK references","href":"/en/agent-sdk/typescript"}]}]},{"tab":"What's New","pages":[{"title":"What's New","href":"/en/whats-new"}]},{"tab":"Resources","pages":[{"title":"Resources","href":"/en/legal-and-compliance"}]}]},{"language":"fr","pages":[{"title":"fr","href":"/fr/agent-sdk/permissions"}]},{"language":"de","pages":[{"title":"de","href":"/de/agent-sdk/permissions"}]},{"language":"it","pages":[{"title":"it","href":"/it/agent-sdk/permissions"}]},{"language":"jp","pages":[{"title":"jp","href":"/ja/agent-sdk/permissions"}]},{"language":"es","pages":[{"title":"es","href":"/es/agent-sdk/permissions"}]},{"language":"ko","pages":[{"title":"ko","href":"/ko/agent-sdk/permissions"}]},{"language":"zh-CN","pages":[{"title":"zh-CN","href":"/zh-CN/agent-sdk/permissions"}]},{"language":"zh-TW","pages":[{"title":"zh-TW","href":"/zh-TW/agent-sdk/permissions"}]},{"language":"ru","pages":[{"title":"ru","href":"/ru/agent-sdk/permissions"}]},{"language":"id","pages":[{"title":"id","href":"/id/agent-sdk/permissions"}]},{"language":"pt-BR","pages":[{"title":"pt-BR","href":"/pt/agent-sdk/permissions"}]}]},"basePath":"","title":"Configure permissions - Claude Code Docs","buildId":"dpl_Acry4NrQAgjcikyFgVE2eJ7XQCAv","deploymentId":"dpl_Acry4NrQAgjcikyFgVE2eJ7XQCAv","dynamics":["a74be98ba7"],"chunks":["zoom-image-lightbox-DBRtNxbY.js","lightbox-handle-r17bVUz3.js"]}

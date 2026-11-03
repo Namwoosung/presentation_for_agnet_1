@@ -1,0 +1,172 @@
+Workflow concepts | Microsoft Learn
+Skip to main content
+Skip to Ask Learn chat experience
+This browser is no longer supported.
+Upgrade to Microsoft Edge to take advantage of the latest features, security updates, and technical support.
+Download Microsoft Edge
+More info about Internet Explorer and Microsoft Edge
+Table of contents
+Exit editor mode
+Ask Learn
+Ask Learn
+Reading mode
+Table of contents
+Read in English
+Add
+Add to Plans
+Edit
+Copy Markdown
+Print
+Note
+Access to this page requires authorization. You can try
+signing in
+or
+changing directories
+.
+Access to this page requires authorization. You can try
+changing directories
+.
+Workflow concepts
+Feedback
+Summarize this article for me
+In this article
+Agent Framework workflows define explicit, inspectable execution paths for coordinating code, agents, state, events, and human input. The framework provides functional and graph-based APIs over the same workflow run model.
+Workflow APIs
+All SDKs support graph-based workflows. Python additionally provides an experimental functional workflow API.
+The .NET SDK uses the graph-based
+WorkflowBuilder
+API. It connects typed executors through edges and conditions, supports fan-out and fan-in execution, emits workflow and executor events, and checkpoints progress at superstep boundaries. Compatible workflows can be exposed through the standard agent interface with
+AsAIAgent()
+.
+Workflow Builder and execution
+explains how to build and run .NET workflow graphs.
+Executors
+,
+edges
+,
+events
+, and
+state management
+describe the graph runtime primitives.
+Functional Workflow API
+uses Python functions and native control flow.
+Workflow Builder and execution
+constructs and runs type-validated workflow graphs.
+Both APIs produce the same observable workflow results. Choose the API that matches the execution model you want to express:
+Functional (
+@workflow
+)
+Graph (
+WorkflowBuilder
+)
+Control flow
+Native Python (
+if
+, loops,
+asyncio.gather
+)
+Edges and conditions
+Best for
+Sequential pipelines, custom loops, and ad-hoc parallelism
+Fixed graphs, fan-out/fan-in, and type-validated message routing
+Parallelism
+asyncio.gather
+Parallel edge groups and superstep execution
+Observability
+Per-step events with
+@step
+Per-executor events
+Human-in-the-loop
+ctx.request_info()
+RequestInfoExecutor
+Checkpointing
+Per-
+@step
+result caching
+Superstep-boundary checkpoints
+Agent wrapping
+.as_agent()
+on
+FunctionalWorkflow
+.as_agent()
+on
+Workflow
+The Go SDK uses the graph-based
+workflow.NewBuilder
+API. It connects bound executors through edges, conditions, and fan-out or fan-in groups, then runs the graph through an execution environment such as
+inproc.Default
+. Expose a compatible workflow through the standard agent interface with
+agentworkflow.NewAgent(...)
+. Use
+agentworkflow.New(...)
+to host an agent as an executor inside a workflow.
+Workflow Builder and execution
+explains how to build and run Go workflow graphs.
+Executors
+,
+edges
+,
+events
+, and
+state management
+describe the graph runtime primitives.
+Graph and runtime model
+Executors
+receive inputs, perform work, and emit outputs.
+Edges
+route values between executors.
+Events
+expose workflow lifecycle and execution activity.
+State management
+controls durable and run-scoped workflow state.
+Advanced execution
+Agent Executor
+integrates agents into workflow graphs.
+Workflow Execution Modes
+explains streaming and non-streaming execution.
+Resettable Executors
+describes executors that reset between runs.
+Sub-Workflows
+composes workflows as executors in larger graphs.
+For feature-oriented guidance such as checkpoints, human-in-the-loop, visualization, and orchestrations, see
+Workflow Capabilities
+.
+Next steps
+Build and run a workflow
+Choose a workflow API
+Build and run a workflow
+Feedback
+Was this page helpful?
+Yes
+No
+No
+Need help with this topic?
+Want to try using Ask Learn to clarify or guide you through this topic?
+Ask Learn
+Ask Learn
+Suggest a fix?
+Additional resources
+Last updated on
+2026-10-28
+In this article
+Was this page helpful?
+Need help with this topic?
+Want to try using Ask Learn to clarify or guide you through this topic?
+Ask Learn
+Ask Learn
+Suggest a fix?
+en-us
+Your Privacy Choices
+Theme
+Light
+Dark
+High contrast
+AI Disclaimer
+Previous Versions
+Blog
+Contribute
+Privacy
+Consumer Health Privacy
+Terms of Use
+Trademarks
+© Microsoft 2026

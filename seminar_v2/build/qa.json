@@ -1,0 +1,173 @@
+{
+  "slides": 5,
+  "states": [
+    {
+      "slideId": "F006",
+      "slideIndex": 0,
+      "stepIndex": 0,
+      "stepCount": 5,
+      "sourceRefs": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+    },
+    {
+      "slideId": "F006",
+      "slideIndex": 0,
+      "stepIndex": 1,
+      "stepCount": 5,
+      "sourceRefs": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+    },
+    {
+      "slideId": "F006",
+      "slideIndex": 0,
+      "stepIndex": 2,
+      "stepCount": 5,
+      "sourceRefs": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+    },
+    {
+      "slideId": "F006",
+      "slideIndex": 0,
+      "stepIndex": 3,
+      "stepCount": 5,
+      "sourceRefs": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+    },
+    {
+      "slideId": "F006",
+      "slideIndex": 0,
+      "stepIndex": 4,
+      "stepCount": 5,
+      "sourceRefs": "H-ARCH / H-LOOP  ·  DOC_CONFIRMED"
+    },
+    {
+      "slideId": "F009",
+      "slideIndex": 1,
+      "stepIndex": 0,
+      "stepCount": 5,
+      "sourceRefs": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+    },
+    {
+      "slideId": "F009",
+      "slideIndex": 1,
+      "stepIndex": 1,
+      "stepCount": 5,
+      "sourceRefs": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+    },
+    {
+      "slideId": "F009",
+      "slideIndex": 1,
+      "stepIndex": 2,
+      "stepCount": 5,
+      "sourceRefs": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+    },
+    {
+      "slideId": "F009",
+      "slideIndex": 1,
+      "stepIndex": 3,
+      "stepCount": 5,
+      "sourceRefs": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+    },
+    {
+      "slideId": "F009",
+      "slideIndex": 1,
+      "stepIndex": 4,
+      "stepCount": 5,
+      "sourceRefs": "H-LOOP  ·  DOC_CONFIRMED / 예시"
+    },
+    {
+      "slideId": "F049",
+      "slideIndex": 2,
+      "stepIndex": 0,
+      "stepCount": 4,
+      "sourceRefs": "P-DEPS  ·  DOC_CONFIRMED / 의사코드"
+    },
+    {
+      "slideId": "F049",
+      "slideIndex": 2,
+      "stepIndex": 1,
+      "stepCount": 4,
+      "sourceRefs": "P-DEPS  ·  DOC_CONFIRMED / 의사코드"
+    },
+    {
+      "slideId": "F049",
+      "slideIndex": 2,
+      "stepIndex": 2,
+      "stepCount": 4,
+      "sourceRefs": "P-DEPS  ·  DOC_CONFIRMED / 의사코드"
+    },
+    {
+      "slideId": "F049",
+      "slideIndex": 2,
+      "stepIndex": 3,
+      "stepCount": 4,
+      "sourceRefs": "P-DEPS  ·  DOC_CONFIRMED / 의사코드"
+    },
+    {
+      "slideId": "F066",
+      "slideIndex": 3,
+      "stepIndex": 0,
+      "stepCount": 4,
+      "sourceRefs": "O-ORCH  ·  DOC_CONFIRMED / 설계 예시"
+    },
+    {
+      "slideId": "F066",
+      "slideIndex": 3,
+      "stepIndex": 1,
+      "stepCount": 4,
+      "sourceRefs": "O-ORCH  ·  DOC_CONFIRMED / 설계 예시"
+    },
+    {
+      "slideId": "F066",
+      "slideIndex": 3,
+      "stepIndex": 2,
+      "stepCount": 4,
+      "sourceRefs": "O-ORCH  ·  DOC_CONFIRMED / 설계 예시"
+    },
+    {
+      "slideId": "F066",
+      "slideIndex": 3,
+      "stepIndex": 3,
+      "stepCount": 4,
+      "sourceRefs": "O-ORCH  ·  DOC_CONFIRMED / 설계 예시"
+    },
+    {
+      "slideId": "F091",
+      "slideIndex": 4,
+      "stepIndex": 0,
+      "stepCount": 4,
+      "sourceRefs": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+    },
+    {
+      "slideId": "F091",
+      "slideIndex": 4,
+      "stepIndex": 1,
+      "stepCount": 4,
+      "sourceRefs": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+    },
+    {
+      "slideId": "F091",
+      "slideIndex": 4,
+      "stepIndex": 2,
+      "stepCount": 4,
+      "sourceRefs": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+    },
+    {
+      "slideId": "F091",
+      "slideIndex": 4,
+      "stepIndex": 3,
+      "stepCount": 4,
+      "sourceRefs": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+    },
+    {
+      "slideId": "F091",
+      "slideIndex": 4,
+      "stepIndex": 3,
+      "stepCount": 4,
+      "sourceRefs": "BLUEPRINT F091  ·  DESIGN_OR_ILLUSTRATIVE"
+    }
+  ],
+  "viewports": [
+    "1920x1080",
+    "1366x768",
+    "1280x720",
+    "390x844"
+  ],
+  "pageErrors": []
+}
